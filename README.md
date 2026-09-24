@@ -237,7 +237,7 @@ Probar una skill sin instalarla: `claude --plugin-dir plugins/pr-fix`.
 
 1. Sube `version` en `package.json` (CLI) y/o en `plugins/<skill>/.claude-plugin/plugin.json` (skill) y anota el cambio en `CHANGELOG.md`.
 2. `npm test`.
-3. Commit, `git tag v<versión>` y `git push --follow-tags`.
+3. Commit, `git tag -a v<versión> -m v<versión>` y `git push --follow-tags` (el tag debe ser anotado para que `--follow-tags` lo suba).
 4. `npm publish` (requiere `npm login`; `prepublishOnly` vuelve a correr los tests).
 
 El marketplace de plugins no necesita publicación: lee directamente la rama `main` de GitHub.
