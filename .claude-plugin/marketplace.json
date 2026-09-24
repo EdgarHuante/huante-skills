@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "huante-skills",
+  "description": "Personal Claude Code skills by Edgar Huante.",
+  "owner": {
+    "name": "Edgar Huante",
+    "url": "https://github.com/EdgarHuante"
+  },
+  "plugins": [
+    {
+      "name": "pr-fix",
+      "description": "Implement the changes requested in a GitHub pull request's code review: understand the project, fix each comment with the minimal change, validate, report. Never commits or pushes on its own.",
+      "source": "./plugins/pr-fix",
+      "category": "development"
+    }
+  ]
+}

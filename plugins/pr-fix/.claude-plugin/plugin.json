@@ -1,0 +1,12 @@
+{
+  "name": "pr-fix",
+  "version": "0.1.0",
+  "description": "Implement the changes requested in a GitHub pull request's code review, with per-comment traceability, user confirmations and real project validation.",
+  "author": {
+    "name": "Edgar Huante",
+    "url": "https://github.com/EdgarHuante"
+  },
+  "repository": "https://github.com/EdgarHuante/huante-skills",
+  "license": "MIT",
+  "keywords": ["code-review", "pull-request", "github", "gh"]
+}

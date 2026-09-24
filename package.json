@@ -1,0 +1,38 @@
+{
+  "name": "huante-skills",
+  "version": "0.1.0",
+  "description": "Personal Claude Code skills, installable as a plugin marketplace or with a zero-dependency CLI. Includes /pr-fix: implement GitHub code review feedback safely.",
+  "author": "Edgar Huante (https://github.com/EdgarHuante)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdgarHuante/huante-skills.git"
+  },
+  "bin": {
+    "huante-skills": "bin/huante-skills.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "plugins",
+    ".claude-plugin",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "validate": "node scripts/validate.js",
+    "new-skill": "node scripts/new-skill.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "skills",
+    "plugin-marketplace",
+    "code-review",
+    "pull-request",
+    "github"
+  ]
+}
