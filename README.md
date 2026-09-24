@@ -2,8 +2,8 @@
 
 Repositorio personal de skills para [Claude Code](https://claude.com/claude-code). Cada skill se distribuye de dos formas desde el mismo código:
 
-1. **Plugin marketplace** (mecanismo oficial de Claude Code): se instala y actualiza con `/plugin`.
-2. **CLI `huante-skills`** (Node, sin dependencias): copia la skill a `~/.claude/skills/<skill>/` para usarla como `/<skill>`.
+1. **`npx huante-skills`** (CLI en npm, sin dependencias): copia la skill a `~/.claude/skills/<skill>/` para usarla como `/<skill>`.
+2. **Plugin marketplace** (mecanismo oficial de Claude Code): se instala y actualiza con `/plugin`.
 
 ## Skills
 
@@ -25,7 +25,36 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
 
 ## Instalación
 
-### Opción A — Plugin marketplace (recomendada)
+### Opción A — `npx` (recomendada, `/pr-fix` sin prefijo)
+
+```sh
+npx huante-skills
+```
+
+Abre la selección interactiva: muestra las skills, eliges con números, nombres o `all`, y las copia a `~/.claude/skills/`. Reinicia Claude Code (o abre una sesión nueva) y usa `/pr-fix`.
+
+Directo, sin preguntas:
+
+```sh
+npx huante-skills install pr-fix
+npx huante-skills install --all
+```
+
+- Por defecto instala en `~/.claude/skills/` (o `$CLAUDE_CONFIG_DIR/skills/` si defines esa variable): disponible en todos los proyectos.
+- Con `--project` instala en `./.claude/skills/` del directorio actual: solo ese proyecto (puedes versionarlo para tu equipo).
+- Cada skill instalada lleva un `.huante-skills.json` con versión, commit y fecha.
+
+Sin npm (directo desde GitHub o con un clon):
+
+```sh
+npx github:EdgarHuante/huante-skills install pr-fix
+
+git clone https://github.com/EdgarHuante/huante-skills.git
+cd huante-skills
+node bin/huante-skills.js            # selección interactiva
+```
+
+### Opción B — Plugin marketplace de Claude Code
 
 Dentro de Claude Code:
 
@@ -41,43 +70,22 @@ claude plugin marketplace add EdgarHuante/huante-skills
 claude plugin install pr-fix@huante-skills
 ```
 
-Reinicia Claude Code. La skill queda con el nombre del plugin como prefijo:
+Reinicia Claude Code. La skill queda con el nombre del plugin como prefijo: `/pr-fix:pr-fix 123`.
 
-```text
-/pr-fix:pr-fix 123
-```
-
-`/plugin` sin argumentos abre el gestor interactivo: ahí puedes ver el marketplace, elegir skills, desactivarlas o desinstalarlas.
-
-También funciona con un clon local (útil mientras desarrollas): `claude plugin marketplace add C:/ruta/a/huante-skills`.
-
-### Opción B — CLI (`/pr-fix` sin prefijo)
-
-Sin clonar (npx descarga el repo de GitHub):
-
-```sh
-npx github:EdgarHuante/huante-skills install pr-fix
-```
-
-Con un clon local:
-
-```sh
-git clone https://github.com/EdgarHuante/huante-skills.git
-cd huante-skills
-node bin/huante-skills.js install            # selección interactiva
-node bin/huante-skills.js install pr-fix     # directo
-node bin/huante-skills.js install --all      # todas
-```
-
-Reinicia Claude Code (o abre una sesión nueva) y usa `/pr-fix`.
-
-- Por defecto instala en `~/.claude/skills/` (o `$CLAUDE_CONFIG_DIR/skills/` si defines esa variable): disponible en todos los proyectos.
-- Con `--project` instala en `./.claude/skills/` del directorio actual: solo ese proyecto (puedes versionarlo para tu equipo).
-- Cada skill instalada lleva un `.huante-skills.json` con versión, commit y fecha.
+`/plugin` sin argumentos abre el gestor interactivo (ver, desactivar o desinstalar). También funciona con un clon local: `claude plugin marketplace add C:/ruta/a/huante-skills`.
 
 > Usa solo **una** de las dos opciones para la misma skill; si tienes ambas verás `/pr-fix` y `/pr-fix:pr-fix` a la vez.
 
 ## Actualización
+
+**npx:**
+
+```sh
+npx huante-skills@latest update         # todas las skills instaladas por el CLI
+npx huante-skills@latest update pr-fix  # solo esa
+```
+
+`@latest` evita que npx use una versión vieja en caché. Con un clon: `git pull && node bin/huante-skills.js update`.
 
 **Plugin marketplace:**
 
@@ -88,18 +96,10 @@ claude plugin update pr-fix@huante-skills
 
 (o `/plugin` → marketplace → actualizar). Claude Code detecta la actualización por el campo `version` de `plugins/<skill>/.claude-plugin/plugin.json`. Reinicia Claude Code después.
 
-**CLI:**
-
-```sh
-npx github:EdgarHuante/huante-skills update           # sin clonar
-git pull && node bin/huante-skills.js update          # con clon local
-```
-
-`update` sin nombres actualiza todas las skills que instaló el CLI; `update pr-fix` solo esa.
-
 ## Comandos del CLI
 
 ```sh
+huante-skills                           # selección interactiva (en una terminal)
 huante-skills list                      # skills disponibles y dónde están instaladas
 huante-skills install [skills...]       # sin nombres: selección interactiva
 huante-skills install --all             # todas
@@ -130,7 +130,7 @@ Garantías:
 /pr-fix https://github.com/org/repo/pull/123     # por URL (debe ser el repo abierto)
 ```
 
-(Con la opción A: `/pr-fix:pr-fix …`.)
+(Instalada como plugin: `/pr-fix:pr-fix …`.)
 
 Ejecuta la skill **dentro del checkout del proyecto**, en la rama del PR. Flujo resumido:
 
@@ -233,12 +233,21 @@ node bin/huante-skills.js doctor
 
 Probar una skill sin instalarla: `claude --plugin-dir plugins/pr-fix`.
 
+## Publicar una versión (mantenedor)
+
+1. Sube `version` en `package.json` (CLI) y/o en `plugins/<skill>/.claude-plugin/plugin.json` (skill) y anota el cambio en `CHANGELOG.md`.
+2. `npm test`.
+3. Commit, `git tag v<versión>` y `git push --follow-tags`.
+4. `npm publish` (requiere `npm login`; `prepublishOnly` vuelve a correr los tests).
+
+El marketplace de plugins no necesita publicación: lee directamente la rama `main` de GitHub.
+
 ## Desinstalar
 
 ```sh
-claude plugin uninstall pr-fix@huante-skills         # opción A
+npx huante-skills uninstall pr-fix                    # opción A
+claude plugin uninstall pr-fix@huante-skills         # opción B
 claude plugin marketplace remove huante-skills
-huante-skills uninstall pr-fix                        # opción B
 rm -rf ~/.claude/pr-fix                               # opcional: sesiones guardadas de pr-fix
 ```
 

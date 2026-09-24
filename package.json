@@ -1,12 +1,16 @@
 {
   "name": "huante-skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Personal Claude Code skills, installable as a plugin marketplace or with a zero-dependency CLI. Includes /pr-fix: implement GitHub code review feedback safely.",
   "author": "Edgar Huante (https://github.com/EdgarHuante)",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EdgarHuante/huante-skills.git"
+  },
+  "homepage": "https://github.com/EdgarHuante/huante-skills#readme",
+  "bugs": {
+    "url": "https://github.com/EdgarHuante/huante-skills/issues"
   },
   "bin": {
     "huante-skills": "bin/huante-skills.js"
@@ -21,7 +25,8 @@
   "scripts": {
     "test": "node --test",
     "validate": "node scripts/validate.js",
-    "new-skill": "node scripts/new-skill.js"
+    "new-skill": "node scripts/new-skill.js",
+    "prepublishOnly": "npm test"
   },
   "engines": {
     "node": ">=18"

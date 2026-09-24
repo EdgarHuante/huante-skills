@@ -2,6 +2,17 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versiones con [SemVer](https://semver.org/lang/es/). Cada skill se versiona en su `plugin.json`; `package.json` versiona el CLI.
 
+## [0.2.0] - 2026-09-24
+
+### Agregado
+
+- `npx huante-skills` sin comando abre la selección interactiva de skills (solo en una terminal; sin terminal muestra la ayuda y sale con código 1).
+- Paquete listo para npm: `homepage`, `bugs` y `prepublishOnly` (corre los tests antes de publicar).
+
+### Cambiado
+
+- README: `npx huante-skills` como instalación principal y sección "Publicar una versión".
+
 ## [0.1.0] - 2026-09-24
 
 ### Agregado

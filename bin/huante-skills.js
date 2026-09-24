@@ -19,8 +19,10 @@ const MARKER = '.huante-skills.json';
 
 const USAGE = `Uso: huante-skills <comando> [skills...] [opciones]
 
+Sin comando (en una terminal): selección interactiva de skills a instalar.
+
 Comandos:
-  list                    Lista las skills disponibles y dónde están instaladas
+  list                   Lista las skills disponibles y dónde están instaladas
   install [skills...]     Instala skills (sin nombres: selección interactiva)
   update [skills...]      Actualiza skills instaladas (sin nombres: todas)
   uninstall <skills...>   Elimina skills instaladas
@@ -357,9 +359,17 @@ async function main() {
     console.log(PKG.version);
     return 0;
   }
-  if (args.help || !args.command) {
+  if (args.help) {
     console.log(USAGE);
-    return args.help ? 0 : 1;
+    return 0;
+  }
+  // No command: interactive install in a terminal, help otherwise (CI, pipes).
+  if (!args.command) {
+    if (process.stdin.isTTY) args.command = 'install';
+    else {
+      console.log(USAGE);
+      return 1;
+    }
   }
   const handler = COMMANDS[args.command];
   if (!handler) {

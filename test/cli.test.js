@@ -35,6 +35,14 @@ test('install copies the skill with a marker and refuses to overwrite without --
   assert.match(list.stdout, /pr-fix\s+v\S+\s+global v/);
 });
 
+test('no command and no TTY prints the help without installing anything', () => {
+  const configDir = tempDir('cfg');
+  const r = runCli(REPO_ROOT, [], { configDir });
+  assert.strictEqual(r.code, 1);
+  assert.match(r.stdout, /Uso: huante-skills/);
+  assert.ok(!fs.existsSync(path.join(configDir, 'skills')));
+});
+
 test('install without names and without a TTY fails cleanly', () => {
   const r = runCli(REPO_ROOT, ['install'], { configDir: tempDir('cfg') });
   assert.strictEqual(r.code, 1);
