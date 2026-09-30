@@ -1,21 +1,22 @@
 ---
 name: test-changes
-description: Create and run the tests for the changes just implemented, following the team's Vitest testing guide for Amplify Gen 2 + React + TypeScript (unit and service tests, no E2E). Runs `pnpm test:cov:changed` (or the project's equivalent script) first as a diagnostic, cross-checks it with git to scope the current work, reads the changed code to find the new or modified behavior, writes the missing `*.unit.test.ts(x)` and, for `allow.*` rules and custom queries/mutations, `*.int.test.ts` next to the code reusing the project's mocks and helpers, re-runs `test:cov:changed` until the real gaps are closed, then runs `npx tsc --noEmit` and reports what was tested, what wasn't and why. Never tests code outside the change set, never adds tests just to raise coverage, never changes production code without asking. Use after finishing an implementation, e.g. "/test-changes", "/test-changes --base origin/integration", "/test-changes src/features/query", "write the tests for what I just changed".
+description: Create and run the tests for the changes just implemented, following the team's Vitest testing guide for Amplify Gen 2 + React + TypeScript (unit and service tests, no E2E). Runs `pnpm test:cov:changed` (or the project's equivalent) as a diagnostic, scopes the current work with git, reads the changed code, writes the missing `*.unit.test.ts(x)` and, for `allow.*` rules and custom queries/mutations, `*.int.test.ts` next to the code reusing the project's mocks, and loops on `test:cov:changed` until every test passes and Lines ≥ 80%, Functions ≥ 80%, Branches ≥ 75% (or stricter project thresholds); then runs `npx tsc --noEmit` and reports COMPLETE or INCOMPLETE. Never tests code outside the change set, never writes tests just to execute lines, never changes production code without asking. Use after finishing an implementation, e.g. "/test-changes", "/test-changes --base origin/integration", "/test-changes src/features/query", "write the tests for what I just changed".
 argument-hint: "[--base <ref>] [paths...]"
 ---
 
 # /test-changes — Test what was just implemented
 
-You write and run the tests for **the change the user just implemented**, nothing else. You start from the project's changed-files coverage command (`pnpm test:cov:changed`) as a diagnostic, confirm the scope with git, understand the behavior the change adds or modifies, write the tests that are missing according to the team's testing guide, re-run the diagnostic until every real gap is closed, check TypeScript and report the result.
+You write and run the tests for **the change the user just implemented**, nothing else. You start from the project's changed-files coverage command (`pnpm test:cov:changed`) as a diagnostic, confirm the scope with git, understand the behavior the change adds or modifies, write the tests that are missing according to the team's testing guide, and keep looping (analyze → tests → coverage) until the coverage thresholds are met and every test passes. Then check TypeScript and report the result.
 
 Main loop:
 
 ```text
 test:cov:changed (diagnostic) → git scope → understand the change → existing tests → test matrix
-  → write unit/int tests → run them → test:cov:changed again → close real gaps → npx tsc --noEmit → summary
+  → write unit/int tests → run them → coverage loop (test:cov:changed → below threshold? → uncovered lines → more tests → repeat)
+  → npx tsc --noEmit → completion criteria → summary
 ```
 
-The coverage report is a **diagnostic, not the goal**: it tells you which changed files have no tests or have uncovered lines; you decide from the code which of those lines are behavior that needs a test.
+Coverage plays two roles. As a **diagnostic**, the `Uncovered Line #s` of the report tell you where tests are missing; you decide from the code which behavior those lines implement. As a **completion condition**, the run isn't done while the applicable coverage is below the thresholds (see "Completion criteria"): "tests pass, but coverage is 78%" is not a finished run, it's the next iteration of the loop.
 
 Argument received: `$ARGUMENTS` (optional):
 
@@ -28,7 +29,7 @@ Talk to the user in the language they are writing in (or the one their `CLAUDE.m
 
 ## Hard rules (apply to every step)
 
-1. **Only the change set.** Tests target the behavior introduced or modified by the current work (Step 1). Code that existed before is touched only when a changed behavior can't be tested without it (a direct dependency to set up, or an existing test that the change made stale). Never write tests for the rest of the project, never "improve" coverage of untouched files.
+1. **Only the change set.** Tests target the behavior of the files changed by the current work (Step 1). When the coverage command measures a changed file as a whole, that whole file is in scope, including code that existed before the change, because its thresholds must be met (Step 7). Files the current work didn't touch are never a target: never write tests for the rest of the project, never "improve" coverage of untouched files.
 2. **Behavior, not files.** A changed file is not a test target by itself; the behavior it adds or changes is. Every test must trace back to one row of the test matrix (Step 4).
 3. **Ownership doubt stops the run.** If you can't tell with confidence which changes belong to the current work, stop and explain before modifying any file (Step 1.5). Never modify, stash, revert or test uncommitted changes that clearly belong to other work.
 4. **Production code is read-only by default.** Never change production code to make a test pass or to raise coverage. If a test reveals a real bug, show the evidence (input, expected, actual, `path:line`) and ask before fixing it (Step 6).
@@ -36,7 +37,7 @@ Talk to the user in the language they are writing in (or the one their `CLAUDE.m
 6. **Use the project's own commands and infrastructure.** Scripts, configs, mocks and helpers come from the repository. Never invent a runner setup, a new config file, a new dependency or a new shared mock when the project already has one; ask before adding any of them.
 7. **No remote side effects without confirmation.** Service tests hit a real Amplify sandbox. Never deploy (`ampx sandbox`, `ampx pipeline-deploy`), never run against a non-test environment, and ask before running service tests (Step 6.3). Never print secrets from `.env*` or `amplify_outputs.json`.
 8. **No commit, no push, no destructive git.** You leave the tests in the working tree. Never `git stash`, `reset`, `checkout -- <file>`, `restore` or `clean`.
-9. **Coverage is a diagnostic, not a target.** `test:cov:changed` tells you where tests may be missing; the code tells you whether a test is needed. Never write a test only to turn a line green.
+9. **Coverage is a completion condition, reached only with real tests.** The run isn't finished while the applicable coverage is below the thresholds ("Completion criteria"); keep iterating instead of reporting "tests pass, coverage is below target". But every test must verify a real behavior with Arrange → Act → Assert: never write a test only to execute lines, and never lower thresholds or change coverage globs.
 10. **Every user decision is an `AskUserQuestion`.** Max 4 options; the recommended option first with ` (Recommended)` in its label. In non-interactive mode (`claude -p`) you can't ask: stop and print what needs deciding.
 
 ---
@@ -84,6 +85,10 @@ The flow is built around the project's changed-files coverage command. Resolve i
 2. If it doesn't exist, look in `package.json` for an equivalent: a script whose name matches `cov`/`coverage` + `changed`/`related`/`diff` (e.g. `test:coverage:changed`, `coverage:changed`), or whose command runs Vitest with coverage over the changed files (`--changed`, `vitest related`, a `scripts/*changed*coverage*` file). Read the script (and the file it runs) to confirm what it does before using it.
 3. If there is no equivalent, don't invent a script and don't edit `package.json`. When a coverage provider is installed (e.g. `@vitest/coverage-v8`), use Vitest directly over the change set once Step 1 has it: `npx vitest run --project <unit project> --coverage --coverage.include=<changed source file>` (one `--coverage.include` per file), plus the tests related to those files (`npx vitest related --run <changed source files…>` when the project's Vitest supports it). Say in the summary that no project script existed. With no coverage provider, continue without the diagnostic (git scope + code reading only), say so, and don't install one without asking.
 
+**Thresholds.** Per metric, the applicable threshold is the stricter of the project's configuration (`coverage.thresholds` in `vitest.config.*`, or the thresholds the script enforces) and the testing guide's minimums: **Lines 80%, Functions 80%, Branches 75%** (and Statements 80% when the project configures it). Higher targets from the guide or the config (e.g. Lambdas, utilities) apply to those files.
+
+**Reading uncovered lines.** The text table truncates long `Uncovered Line #s` values with `...`. When that happens, read the full list from a machine-readable report the run produced: `coverage/lcov.info` (lines `DA:<line>,0` are uncovered lines; `BRDA:<line>,<block>,<branch>,0` or `-` are untaken branches; anchor the patterns at line start so `BRDA` isn't read as `DA`), or `coverage/coverage-final.json` when present. Never guess the hidden part of a truncated list.
+
 Read the script before the first run to learn: its default base (e.g. `origin/integration`) and whether it accepts `--base <ref>`; which files it measures (coverage include/exclude globs); whether it enforces thresholds (a non-zero exit only because coverage is below target is an expected diagnostic result, not a broken run); and where it writes reports (e.g. `coverage/coverage-summary.json` with the `json-summary` reporter). If the user passed `--base`, forward it when the script supports it; if it doesn't, tell the user the script uses its own base.
 
 The command runs unit tests only; service tests (`*.int.test.ts`) never count toward it.
@@ -99,7 +104,7 @@ The command runs unit tests only; service tests (`*.int.test.ts`) never count to
    - per file: statements/branches/functions/lines and the uncovered line ranges,
    - files at 0% or with no test at all,
    - the tests it ran and their result,
-   - whether the thresholds passed.
+   - whether each applicable threshold passed (Lines, Functions, Branches, and Statements when configured), in total and per file.
 4. Keep this as the **initial diagnostic**. It feeds Step 1 (scope cross-check) and Step 4 (where tests are missing). Don't write tests yet.
 
 ---
@@ -135,7 +140,7 @@ The command runs unit tests only; service tests (`*.int.test.ts`) never count to
 6. If `paths...` were given, intersect the change set with them. If the result is empty, say so and **stop**.
 7. If the change set contains no production source (only docs, config, tests or generated files), say there is no behavior to test, list what changed, and **stop** (if test files changed, offer to run them as in Step 6).
 8. **Cross-check with the diagnostic** (Step 0):
-   - Measured by the command and in the change set → in scope; its coverage numbers guide Step 4.
+   - Measured by the command and in the change set → in scope, **as a whole file**: its coverage must end up meeting the thresholds (Step 7), and its uncovered lines guide Step 4.
    - Measured by the command but excluded by the ownership check or `paths...` → out of scope: ignore its numbers, never write tests for it.
    - In the change set but not measured (coverage-excluded globs, `amplify/data/resource.ts` schemas and auth rules, files outside the coverage roots) → still in scope; analyze it in Step 2 (auth rules and custom operations usually need service tests, which coverage never measures).
    - The command's file list and git disagree beyond these cases (e.g. different base) → say so, and trust the git scope.
@@ -193,7 +198,7 @@ Build it internally (show it only if the user asks or when a decision needs it).
 
 **Depth**: one test per meaningful case (happy path, each introduced branch, error path, boundary the change actually handles). Don't enumerate inputs that exercise the same branch. Don't test third-party libraries, React itself or Amplify's generated code.
 
-**Using the diagnostic**: map each uncovered range from Step 0 that falls inside the diff (or inside code the change made reachable) to the behavior it implements. Behavior not yet in the matrix → add a row. Uncovered lines outside the diff and outside the change's reach are pre-existing gaps: don't test them. Uncovered lines that are unreachable, purely defensive or trivial (a re-export, a type guard that can't fail) → note them, no row.
+**Using the diagnostic**: map each uncovered range from Step 0 to the behavior it implements, starting with the ranges inside the diff (or code the change made reachable), then the rest of the file. Behavior not yet in the matrix → add a row. Uncovered lines of files outside the change set are never rows. Uncovered lines that are unreachable, purely defensive or trivial (a re-export, a type guard that can't fail) → note them, no row; the thresholds are still reached through real behavior elsewhere in the file.
 
 Check the matrix against the inventory: every production file in the change set must have at least one row (even if `none`), so no change is forgotten.
 
@@ -231,16 +236,26 @@ Run the new and updated tests quickly before re-running the diagnostic, so failu
 
 ---
 
-## Step 7 — Re-run the diagnostic and close the gaps
+## Step 7 — Coverage loop (mandatory)
 
-1. Run the changed-coverage command again (same command and base as Step 0).
-2. Compare with the initial diagnostic, per file in scope: tests that now run, coverage before → after, remaining uncovered ranges, thresholds.
-3. For every remaining uncovered range **in the change set**, decide from the code:
-   - It's a behavior (a branch, error path, fallback, condition) that no test exercises → add the test (Step 4 → Step 5 → Step 6) and re-run.
-   - It's unreachable, purely defensive, trivial or outside the change → leave it, and list it with the reason in the summary.
-   - It needs a real backend (auth rules, custom operations) → it's covered by service tests, which this report never counts; say so.
-4. Stop iterating when every remaining gap in the change set is explained, or after 2 extra rounds; report what's left. Thresholds still failing after that are reported with the explanation per file, never forced.
-5. Never add assertion-free tests, tests of code outside the change set, or production-code changes to raise the number. Never lower thresholds or edit coverage globs.
+Passing tests don't end the run. Repeat this loop until the completion criteria are met:
+
+1. Run the changed-coverage command (same command and base as Step 0).
+2. Check that every test passed, then read the totals and each measured file against the applicable thresholds (Lines, Functions, Branches, and Statements when configured). A non-zero exit caused by thresholds means "keep going", not "done" and not "broken".
+3. **Classify every shortfall:**
+   - **A — caused by the current work**: files of the change set that the command measures, below threshold. This includes code in those files that existed before the change, because the command measures the whole file. → Close it with tests (points 4-7).
+   - **B — pre-existing and unrelated**: files the command measures that aren't part of the current work (excluded by the ownership check or `paths...`, or pulled in by the script's base or globs). → Don't write or change tests or code for them. Name them with their numbers as the reason the global gate can't pass, and ask the user (header `Coverage`): `Narrow the scope or base so only the current work is measured (Recommended)` / `Also cover these files` / `Stop here`. Until that's resolved the run is **not** successful.
+4. For each A file below threshold, take its uncovered lines, branches and functions (the full list, see "Reading uncovered lines") and read that code: what behavior does each range implement (a branch, a fallback, an error path, an event handler, a render case, a column sort, an empty state)?
+5. Read the file's existing tests first: extend them instead of duplicating cases, and reuse their helpers and mocks.
+6. Add the rows to the matrix and write the tests (Step 4 → Step 5): `*.unit.test.ts(x)` for logic, hooks, components, transformations, validations, errors and branches; `*.int.test.ts` only for behavior that needs the Amplify sandbox (`allow.*` authorization, custom queries and mutations), which this report never counts. Every test asserts a real outcome (what the user sees, what is called and with which arguments, what is returned or thrown) with Arrange → Act → Assert, driven through the public surface (props, URL params, user events, function arguments).
+7. Run the new tests (Step 6), fix what fails, and go back to 1.
+
+**When the loop can't reach the thresholds honestly**, stop and report the run as **incomplete**, never as done:
+- the remaining uncovered code can't be reached from any public behavior (dead code, impossible branch), so only an artificial test would cover it;
+- two consecutive rounds added no coverage although real behaviors were tested;
+- a real bug blocks the tests (Step 6.4).
+
+In those cases show, per file, the numbers, the exact uncovered lines and why they can't be covered with a real test, and ask the user how to proceed (header `Coverage`), e.g. `Remove the dead code (production change)` / `Accept below threshold for now` / `Stop`. Never lower thresholds, edit coverage globs or add assertion-free tests to get out of the loop.
 
 ---
 
@@ -250,15 +265,30 @@ Last check, after all tests are written: run `npx tsc --noEmit` (or the project'
 
 ---
 
+## Completion criteria
+
+`/test-changes` is successful only when **all** of these hold:
+
+1. Every test in the changed-coverage run and in the affected feature(s) passes.
+2. The applicable coverage meets every threshold (Lines ≥ 80%, Functions ≥ 80%, Branches ≥ 75%, Statements when configured, or the stricter project values), both in the command's totals and for each measured file of the current work.
+3. The changed-coverage command exits successfully (when it enforces thresholds).
+4. `npx tsc --noEmit` (or the project's typecheck) reports no errors caused by the current work.
+5. Every change-set file has a matrix row: tested, or `none` with a reason (structural, already covered, service test).
+6. No production code was changed without the user's approval, and no test was skipped, weakened or made assertion-free.
+
+If any criterion fails, the result is **INCOMPLETE**: say which one, why, and what's needed to finish. "Tests pass but coverage is below the thresholds" is never reported as success.
+
+---
+
 ## Step 9 — Summary
 
-Report, concisely:
+Start with the result: **COMPLETE** (all completion criteria met) or **INCOMPLETE** (list the failing criteria). Then report, concisely:
 
 1. **Scope**: base and merge-base; the change-set files analyzed (status + kind); files excluded by the user or the ownership check, with the reason.
 2. **Tests created** (new files) and **tests updated** (existing files), each with the behaviors it covers (`T1 returns the builder name when the id exists — unit`).
 3. **Not tested and why**: structural changes, behaviors already covered (naming the existing test), service tests written but not run, anything not testable here.
 4. **Commands run**, each with ✓ / ✗ / not run and a one-line result (`✓ pnpm test:feature -- query unit — 24 passed`), including the changed-coverage command used (or why it wasn't available).
-5. **Coverage** from the changed-coverage command, per file in scope: before (Step 0) → after (Step 7) vs target, and every remaining gap with its reason.
+5. **Coverage** from the changed-coverage command: totals and each measured file, Lines / Functions / Branches (and Statements) before (Step 0) → after (Step 7) against each threshold with ✓/✗, the number of loop rounds, remaining uncovered lines with their reason, and any B shortfall (pre-existing, unrelated) named separately.
 6. **Problems**: failing tests with their classification (test / environment / pre-existing / implementation bug), TypeScript errors, bugs found and whether they were fixed with the user's approval.
 7. **Production code changed**: normally "none"; otherwise each change and the approval behind it.
 8. `git status --short` of the files this run created or modified, kept apart from the user's own changes.

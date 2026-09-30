@@ -10,7 +10,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
 | Skill | Versión | Qué hace |
 | --- | --- | --- |
 | [`pr-fix`](plugins/pr-fix/README.md) | 0.1.0 | Implementa las correcciones pedidas en el Code Review de un Pull Request de GitHub: entiende el proyecto, relaciona cada comentario con el código, planifica cambios mínimos, pide confirmación cuando hace falta, implementa, valida con los comandos reales del proyecto y reporta el estado de cada comentario. Nunca hace commit, push ni escribe en GitHub sin confirmación explícita. |
-| [`test-changes`](plugins/test-changes/README.md) | 0.1.0 | Crea y ejecuta las pruebas de los cambios recién implementados (Vitest, Amplify Gen 2 + React + TypeScript): detecta el alcance con git, decide unitarias vs de servicio, escribe las pruebas junto al código, ejecuta pruebas, TypeScript y cobertura, y reporta qué se probó y qué quedó sin probar. Solo prueba el cambio actual; no hace commit ni cambia código de producción sin confirmación. |
+| [`test-changes`](plugins/test-changes/README.md) | 0.2.0 | Crea y ejecuta las pruebas de los cambios recién implementados (Vitest, Amplify Gen 2 + React + TypeScript): detecta el alcance con git, decide unitarias vs de servicio, escribe las pruebas junto al código, ejecuta pruebas, TypeScript y cobertura, y reporta qué se probó y qué quedó sin probar. Solo prueba el cambio actual; no hace commit ni cambia código de producción sin confirmación. |
 
 ## Requisitos
 
@@ -202,16 +202,20 @@ pnpm test:cov:changed (diagnóstico inicial: archivos afectados, cobertura, lín
   → Matriz: comportamiento → unit / int / sin prueba, usando las líneas sin cubrir del diff
   → Escribir o actualizar *.unit.test.ts(x) / *.int.test.ts junto al código
   → Ejecutar las pruebas (servicio solo con confirmación)
-  → pnpm test:cov:changed otra vez → cerrar huecos reales (máx. 2 rondas extra)
+  → Ciclo obligatorio: pnpm test:cov:changed → ¿Lines ≥ 80 %, Functions ≥ 80 %, Branches ≥ 75 %?
+      no → leer Uncovered Line #s → pruebas de comportamiento real → repetir
   → npx tsc --noEmit
-  → Resumen: archivos analizados, pruebas creadas/actualizadas, comandos, cobertura antes → después, pendientes
+  → Resumen: COMPLETE / INCOMPLETE, archivos analizados, pruebas creadas/actualizadas, comandos, cobertura antes → después, pendientes
 ```
+
+La cobertura es condición de término: con pruebas en verde pero cobertura bajo los mínimos (o los umbrales más estrictos del proyecto) la skill sigue escribiendo pruebas. Los archivos del cambio que mide el comando deben quedar completos sobre el umbral, incluido el código que ya existía en ellos; la cobertura baja de archivos ajenos al trabajo actual se reporta aparte y no se toca. Si no puede llegar al umbral con pruebas reales (código muerto, rama imposible), termina como **INCOMPLETE** y pregunta; nunca baja umbrales ni escribe pruebas sin aserciones.
 
 Si el proyecto no tiene `test:cov:changed`, busca el script equivalente en `package.json`; si no hay, usa Vitest con `--coverage.include` sobre los archivos cambiados, sin crear scripts nuevos.
 
 Ejemplo de resumen:
 
 ```text
+Resultado: COMPLETE
 Alcance: base origin/integration · 3 commits + 2 archivos sin commit
   M src/features/query/model/builders.ts · source
   A src/features/query/hooks/useBuilderLabels.ts · source

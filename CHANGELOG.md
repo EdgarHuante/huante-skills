@@ -4,6 +4,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Cambiado
+
+- Skill **`test-changes` 0.2.0**: la cobertura pasa a ser condición de término.
+  - Ciclo obligatorio `test:cov:changed` → umbrales → `Uncovered Line #s` → pruebas → repetir, hasta Lines ≥ 80 %, Functions ≥ 80 %, Branches ≥ 75 % (o los umbrales más estrictos del proyecto) con todas las pruebas en verde.
+  - Los archivos del cambio que mide el comando deben cumplir el umbral completos; la cobertura baja de archivos ajenos al trabajo se reporta aparte y no se toca.
+  - Lee la lista completa de líneas sin cubrir de `coverage/lcov.info` cuando la tabla la trunca con `...`.
+  - Nueva sección "Completion criteria": el resultado es COMPLETE o INCOMPLETE; "pruebas en verde con cobertura baja" nunca es éxito.
+  - Se quitó el tope de 2 rondas; solo se detiene antes si lo que falta no se puede cubrir con pruebas reales, y entonces pregunta.
+
+
 ### Agregado
 
 - Skill **`test-changes` 0.1.0**: crea y ejecuta las pruebas de los cambios recién implementados siguiendo la guía de pruebas unitarias y de servicio con Vitest (Amplify Gen 2 + React + TypeScript).

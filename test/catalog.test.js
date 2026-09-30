@@ -48,7 +48,9 @@ test('test-changes skill is registered and keeps its scope rules', () => {
     /Production code is read-only by default/,
     /Never hide failures/,
     /test:cov:changed/,
-    /Coverage is a diagnostic, not a target/,
+    /Coverage is a completion condition/,
+    /## Completion criteria/,
+    /Coverage loop \(mandatory\)/,
     /\$ARGUMENTS/,
   ]) {
     assert.match(body, expected);
