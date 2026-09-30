@@ -50,6 +50,8 @@ test('test-changes skill is registered and keeps its scope rules', () => {
     /test:cov:changed/,
     /Coverage is a completion condition/,
     /## Completion criteria/,
+    /Lint and TypeScript/,
+    /Whole-project commands are out of scope/,
     /Coverage loop \(mandatory\)/,
     /\$ARGUMENTS/,
   ]) {

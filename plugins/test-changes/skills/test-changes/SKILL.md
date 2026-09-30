@@ -1,19 +1,19 @@
 ---
 name: test-changes
-description: Create and run the tests for the changes just implemented, following the team's Vitest testing guide for Amplify Gen 2 + React + TypeScript (unit and service tests, no E2E). Runs `pnpm test:cov:changed` (or the project's equivalent) as a diagnostic, scopes the current work with git, reads the changed code, writes the missing `*.unit.test.ts(x)` and, for `allow.*` rules and custom queries/mutations, `*.int.test.ts` next to the code reusing the project's mocks, and loops on `test:cov:changed` until every test passes and Lines ≥ 80%, Functions ≥ 80%, Branches ≥ 75% (or stricter project thresholds); then runs `npx tsc --noEmit` and reports COMPLETE or INCOMPLETE. Never tests code outside the change set, never writes tests just to execute lines, never changes production code without asking. Use after finishing an implementation, e.g. "/test-changes", "/test-changes --base origin/integration", "/test-changes src/features/query", "write the tests for what I just changed".
+description: Create and run the tests for the changes just implemented, following the team's Vitest testing guide for Amplify Gen 2 + React + TypeScript (unit and service tests, no E2E). Runs `pnpm test:cov:changed` (or the project's equivalent) as a diagnostic, scopes the current work with git, reads the changed code, writes the missing `*.unit.test.ts(x)` and, for `allow.*` rules and custom queries/mutations, `*.int.test.ts` next to the code reusing the project's mocks, and loops on `test:cov:changed` until every test passes and Lines ≥ 80%, Functions ≥ 80%, Branches ≥ 75% (or stricter project thresholds); then runs the project's typecheck and ESLint on the files it touched, and reports COMPLETE or INCOMPLETE. Never tests code outside the change set, never writes tests just to execute lines, never changes production code without asking. Use after finishing an implementation, e.g. "/test-changes", "/test-changes --base origin/integration", "/test-changes src/features/query", "write the tests for what I just changed".
 argument-hint: "[--base <ref>] [paths...]"
 ---
 
 # /test-changes — Test what was just implemented
 
-You write and run the tests for **the change the user just implemented**, nothing else. You start from the project's changed-files coverage command (`pnpm test:cov:changed`) as a diagnostic, confirm the scope with git, understand the behavior the change adds or modifies, write the tests that are missing according to the team's testing guide, and keep looping (analyze → tests → coverage) until the coverage thresholds are met and every test passes. Then check TypeScript and report the result.
+You write and run the tests for **the change the user just implemented**, nothing else. You start from the project's changed-files coverage command (`pnpm test:cov:changed`) as a diagnostic, confirm the scope with git, understand the behavior the change adds or modifies, write the tests that are missing according to the team's testing guide, and keep looping (analyze → tests → coverage) until the coverage thresholds are met and every test passes. Then lint the files the run touched, check types with the project's typecheck and report the result.
 
 Main loop:
 
 ```text
 test:cov:changed (diagnostic) → git scope → understand the change → existing tests → test matrix
   → write unit/int tests → run them → coverage loop (test:cov:changed → below threshold? → uncovered lines → more tests → repeat)
-  → npx tsc --noEmit → completion criteria → summary
+  → lint (touched files) → typecheck → completion criteria → summary
 ```
 
 Coverage plays two roles. As a **diagnostic**, the `Uncovered Line #s` of the report tell you where tests are missing; you decide from the code which behavior those lines implement. As a **completion condition**, the run isn't done while the applicable coverage is below the thresholds (see "Completion criteria"): "tests pass, but coverage is 78%" is not a finished run, it's the next iteration of the loop.
@@ -92,6 +92,8 @@ The flow is built around the project's changed-files coverage command. Resolve i
 Read the script before the first run to learn: its default base (e.g. `origin/integration`) and whether it accepts `--base <ref>`; which files it measures (coverage include/exclude globs); whether it enforces thresholds (a non-zero exit only because coverage is below target is an expected diagnostic result, not a broken run); and where it writes reports (e.g. `coverage/coverage-summary.json` with the `json-summary` reporter). If the user passed `--base`, forward it when the script supports it; if it doesn't, tell the user the script uses its own base.
 
 The command runs unit tests only; service tests (`*.int.test.ts`) never count toward it.
+
+**Whole-project commands are out of scope.** Never run, and never try to make pass, scripts that test or measure the entire program instead of the change: the full unit suite (`test:unit`, `test`), whole-project coverage (`test:cov`), legacy suites kept under their own config (`test:legacy` or similar), a project-wide `lint` over `.`, or `build`. Their failures belong to code outside the current work. The changed-coverage command already runs the tests of the changed files and of the code that imports them (`vitest related`), which covers what the change can break nearby.
 
 ---
 
@@ -259,9 +261,20 @@ In those cases show, per file, the numbers, the exact uncovered lines and why th
 
 ---
 
-## Step 8 — TypeScript
+## Step 8 — Lint and TypeScript
 
-Last check, after all tests are written: run `npx tsc --noEmit` (or the project's `typecheck`/`type-check` script, or `tsc -p <config> --noEmit` for each relevant tsconfig when the project has several; check which ones include the test files). Errors in the new/updated test files are yours to fix; after fixing them, re-run the affected tests. Errors elsewhere: check whether they come from changed files; report pre-existing ones (worktree comparison as in Step 6.4), don't fix them. If no tsconfig includes the tests, say so.
+Last checks, after the coverage loop is green. If one of them makes you change a test, re-run the affected tests and the changed-coverage command before finishing.
+
+**Lint (only the files this run touched).**
+1. Read the project's `lint` script (e.g. `eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0`) and keep its flags, but replace the `.` target with the files this run created or modified plus the change-set source files: `pnpm exec eslint <same flags> <files…>` (use the detected package manager). Never lint the whole project.
+2. With no `lint` script, use ESLint directly only when the project has an ESLint config (`eslint.config.*`, `.eslintrc*`); otherwise say there is no linter and skip it.
+3. Errors or warnings (the script's `--max-warnings` counts) in the tests you wrote or updated are yours to fix (unused imports and variables, hook rules, `no-explicit-any`…), without disabling rules or adding `eslint-disable` comments.
+4. Findings in production files of the change set are the user's code: show them and ask before changing anything (hard rule 4). Findings that already existed before the change are reported, not fixed.
+
+**TypeScript.**
+1. Prefer the project's `typecheck`/`type-check` script: it knows every tsconfig the project checks (e.g. `tsc --noEmit && tsc -p amplify/tsconfig.test.json`, where the second one covers the backend tests that the root `tsc` doesn't see). Read it before running it.
+2. Without a script, run `npx tsc --noEmit` plus `tsc -p <config> --noEmit` for every other tsconfig that includes test files; if no tsconfig includes the tests, say so.
+3. Errors in the new/updated test files are yours to fix. Errors in change-set production files: show them and ask. Errors in files the current work didn't touch are pre-existing: report them (worktree comparison as in Step 6.4 when unclear) and don't fix them.
 
 ---
 
@@ -272,9 +285,10 @@ Last check, after all tests are written: run `npx tsc --noEmit` (or the project'
 1. Every test in the changed-coverage run and in the affected feature(s) passes.
 2. The applicable coverage meets every threshold (Lines ≥ 80%, Functions ≥ 80%, Branches ≥ 75%, Statements when configured, or the stricter project values), both in the command's totals and for each measured file of the current work.
 3. The changed-coverage command exits successfully (when it enforces thresholds).
-4. `npx tsc --noEmit` (or the project's typecheck) reports no errors caused by the current work.
-5. Every change-set file has a matrix row: tested, or `none` with a reason (structural, already covered, service test).
-6. No production code was changed without the user's approval, and no test was skipped, weakened or made assertion-free.
+4. The project's typecheck (or `npx tsc --noEmit` plus every tsconfig that includes tests) reports no errors caused by the current work.
+5. ESLint, with the project's flags, reports no errors or warnings in the files this run touched.
+6. Every change-set file has a matrix row: tested, or `none` with a reason (structural, already covered, service test).
+7. No production code was changed without the user's approval, and no test was skipped, weakened or made assertion-free.
 
 If any criterion fails, the result is **INCOMPLETE**: say which one, why, and what's needed to finish. "Tests pass but coverage is below the thresholds" is never reported as success.
 
@@ -287,9 +301,9 @@ Start with the result: **COMPLETE** (all completion criteria met) or **INCOMPLET
 1. **Scope**: base and merge-base; the change-set files analyzed (status + kind); files excluded by the user or the ownership check, with the reason.
 2. **Tests created** (new files) and **tests updated** (existing files), each with the behaviors it covers (`T1 returns the builder name when the id exists — unit`).
 3. **Not tested and why**: structural changes, behaviors already covered (naming the existing test), service tests written but not run, anything not testable here.
-4. **Commands run**, each with ✓ / ✗ / not run and a one-line result (`✓ pnpm test:feature -- query unit — 24 passed`), including the changed-coverage command used (or why it wasn't available).
+4. **Commands run**, each with ✓ / ✗ / not run and a one-line result (`✓ pnpm test:feature -- query unit — 24 passed`), including the changed-coverage command, the lint command with the files it checked, and the typecheck command (or why one wasn't available).
 5. **Coverage** from the changed-coverage command: totals and each measured file, Lines / Functions / Branches (and Statements) before (Step 0) → after (Step 7) against each threshold with ✓/✗, the number of loop rounds, remaining uncovered lines with their reason, and any B shortfall (pre-existing, unrelated) named separately.
-6. **Problems**: failing tests with their classification (test / environment / pre-existing / implementation bug), TypeScript errors, bugs found and whether they were fixed with the user's approval.
+6. **Problems**: failing tests with their classification (test / environment / pre-existing / implementation bug), lint and TypeScript findings (fixed, pending your decision, or pre-existing), bugs found and whether they were fixed with the user's approval.
 7. **Production code changed**: normally "none"; otherwise each change and the approval behind it.
 8. `git status --short` of the files this run created or modified, kept apart from the user's own changes.
 

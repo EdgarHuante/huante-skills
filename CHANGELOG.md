@@ -6,13 +6,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Skill **`test-changes` 0.3.0**: revisión final de lint y tipos.
+  - ESLint con las opciones del script `lint` del proyecto, pero solo sobre los archivos que tocó la corrida y los del cambio; corrige sus pruebas, pregunta antes de tocar producción y reporta lo previo.
+  - Usa el script `typecheck` del proyecto en lugar de `npx tsc --noEmit`, para incluir también los tsconfig de pruebas de backend (p. ej. `amplify/tsconfig.test.json`).
+  - Lint y typecheck pasan a ser criterios de término.
+  - Deja fuera explícitamente los comandos de todo el programa (`test:unit`, `test:cov`, `test:legacy`, `lint` sobre `.`, `build`).
 - Skill **`test-changes` 0.2.0**: la cobertura pasa a ser condición de término.
   - Ciclo obligatorio `test:cov:changed` → umbrales → `Uncovered Line #s` → pruebas → repetir, hasta Lines ≥ 80 %, Functions ≥ 80 %, Branches ≥ 75 % (o los umbrales más estrictos del proyecto) con todas las pruebas en verde.
   - Los archivos del cambio que mide el comando deben cumplir el umbral completos; la cobertura baja de archivos ajenos al trabajo se reporta aparte y no se toca.
   - Lee la lista completa de líneas sin cubrir de `coverage/lcov.info` cuando la tabla la trunca con `...`.
   - Nueva sección "Completion criteria": el resultado es COMPLETE o INCOMPLETE; "pruebas en verde con cobertura baja" nunca es éxito.
   - Se quitó el tope de 2 rondas; solo se detiene antes si lo que falta no se puede cubrir con pruebas reales, y entonces pregunta.
-
 
 ### Agregado
 
