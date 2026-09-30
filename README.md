@@ -10,6 +10,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
 | Skill | Versión | Qué hace |
 | --- | --- | --- |
 | [`pr-fix`](plugins/pr-fix/README.md) | 0.1.0 | Implementa las correcciones pedidas en el Code Review de un Pull Request de GitHub: entiende el proyecto, relaciona cada comentario con el código, planifica cambios mínimos, pide confirmación cuando hace falta, implementa, valida con los comandos reales del proyecto y reporta el estado de cada comentario. Nunca hace commit, push ni escribe en GitHub sin confirmación explícita. |
+| [`test-changes`](plugins/test-changes/README.md) | 0.1.0 | Crea y ejecuta las pruebas de los cambios recién implementados (Vitest, Amplify Gen 2 + React + TypeScript): detecta el alcance con git, decide unitarias vs de servicio, escribe las pruebas junto al código, ejecuta pruebas, TypeScript y cobertura, y reporta qué se probó y qué quedó sin probar. Solo prueba el cambio actual; no hace commit ni cambia código de producción sin confirmación. |
 
 ## Requisitos
 
@@ -22,6 +23,8 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
   gh auth login
   gh auth status
   ```
+
+- Para `test-changes`: proyecto con **Vitest** configurado (idealmente con los scripts de la guía: `test:feature`, `test:changed`, `test:cov:changed`). Las pruebas de servicio requieren un sandbox de Amplify de pruebas ya desplegado.
 
 ## Instalación
 
@@ -179,6 +182,63 @@ Mantén los permisos de Claude Code en modo con confirmación; no uses "bypass p
 - Solo usa comandos de validación que existen en el repo; si el proyecto no tiene tests/lint, lo reporta y no inventa.
 - En `claude -p` (modo no interactivo) no puede preguntar: se detiene y muestra lo que necesita decidir.
 
+## Uso de `test-changes`
+
+```text
+/test-changes                            # cambios de la rama actual (base detectada)
+/test-changes --base origin/integration  # base explícita
+/test-changes src/features/query         # limita el alcance a una ruta del cambio
+```
+
+(Instalada como plugin: `/test-changes:test-changes …`.)
+
+Ejecútala dentro del proyecto, al terminar una implementación y antes del commit (o con los commits ya hechos en la rama). Flujo resumido:
+
+```text
+Descubrir cambios (base, commits de la rama, staged, unstaged, untracked, borrados/renombrados)
+  → Decidir qué cambios son del trabajo actual (si hay duda, pregunta o se detiene sin tocar nada)
+  → Entender el comportamiento nuevo/modificado (archivo completo, usos, specs, schema y allow.*)
+  → Revisar pruebas existentes (vitest.config, scripts, test/mocks, test/helpers, testing/index.ts)
+  → Matriz: comportamiento → unit / int / sin prueba (estructural o ya cubierto)
+  → Escribir o actualizar *.unit.test.ts(x) / *.int.test.ts junto al código
+  → Ejecutar pruebas de la feature y de los cambios (servicio solo con confirmación)
+  → npx tsc --noEmit → cobertura con los scripts del proyecto
+  → Resumen: archivos analizados, pruebas creadas/actualizadas, comandos, cobertura, pendientes
+```
+
+Ejemplo de resumen:
+
+```text
+Alcance: base origin/integration · 3 commits + 2 archivos sin commit
+  M src/features/query/model/builders.ts · source
+  A src/features/query/hooks/useBuilderLabels.ts · source
+  M amplify/data/resource.ts · amplify (nueva regla allow.owner en Builder)
+
+Pruebas nuevas:
+  src/features/query/hooks/useBuilderLabels.unit.test.ts
+    T1 devuelve el nombre del constructor cuando el id existe — unit
+    T2 muestra el id cuando el constructor no existe (??) — unit
+  amplify/data/builder-auth.int.test.ts
+    T4 el dueño puede actualizar su registro — int
+    T5 otro usuario no puede actualizarlo — int
+Pruebas actualizadas:
+  src/features/query/model/builders.unit.test.ts · T3 ordena por nombre, no por id
+Sin prueba: src/features/query/index.ts (re-export, estructural)
+
+✓ pnpm test:feature -- query unit — 24 passed
+✓ pnpm test:int — 2 passed
+✓ npx tsc --noEmit
+✓ pnpm test:feature -- query unit --coverage — 91% líneas, 86% ramas (meta 80%)
+Código de producción modificado: ninguno
+```
+
+### Limitaciones
+
+- Pensada para la guía de Vitest en Amplify Gen 2 + React + TypeScript; en otros proyectos sigue las convenciones que encuentre, pero no configura Vitest desde cero sin preguntar.
+- No despliega sandboxes: las pruebas de servicio se ejecutan solo si ya hay uno configurado y confirmas.
+- Si la base remota está desactualizada, el alcance puede incluir cambios de más; usa `--base` o haz `git fetch` antes.
+- En `claude -p` (modo no interactivo) no puede preguntar: si el alcance es dudoso se detiene sin modificar archivos.
+
 ## Estructura del repositorio
 
 ```text
@@ -186,13 +246,14 @@ huante-skills/
 ├── .claude-plugin/
 │   └── marketplace.json          # catálogo: lista de plugins (una skill = un plugin)
 ├── plugins/
-│   └── pr-fix/
-│       ├── .claude-plugin/
-│       │   └── plugin.json       # nombre, versión, descripción
-│       ├── README.md
-│       └── skills/
-│           └── pr-fix/
-│               └── SKILL.md      # la skill
+│   ├── pr-fix/
+│   │   ├── .claude-plugin/
+│   │   │   └── plugin.json       # nombre, versión, descripción
+│   │   ├── README.md
+│   │   └── skills/
+│   │       └── pr-fix/
+│   │           └── SKILL.md      # la skill
+│   └── test-changes/             # misma estructura
 ├── bin/huante-skills.js          # CLI de instalación (sin dependencias)
 ├── lib/catalog.js                # lectura y validación del catálogo (CLI, scripts y tests)
 ├── scripts/
@@ -246,6 +307,7 @@ El marketplace de plugins no necesita publicación: lee directamente la rama `ma
 
 ```sh
 npx huante-skills uninstall pr-fix                    # opción A
+npx huante-skills uninstall test-changes
 claude plugin uninstall pr-fix@huante-skills         # opción B
 claude plugin marketplace remove huante-skills
 rm -rf ~/.claude/pr-fix                               # opcional: sesiones guardadas de pr-fix

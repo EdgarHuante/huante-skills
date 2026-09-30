@@ -12,6 +12,12 @@
       "description": "Implement the changes requested in a GitHub pull request's code review: understand the project, fix each comment with the minimal change, validate, report. Never commits or pushes on its own.",
       "source": "./plugins/pr-fix",
       "category": "development"
+    },
+    {
+      "name": "test-changes",
+      "description": "Create and run the tests for the changes just implemented (Vitest, Amplify Gen 2 + React + TypeScript): detects the git change set, tests only the new or modified behavior, runs tests, TypeScript and coverage.",
+      "source": "./plugins/test-changes",
+      "category": "development"
     }
   ]
 }

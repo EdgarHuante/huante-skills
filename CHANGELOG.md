@@ -2,6 +2,17 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versiones con [SemVer](https://semver.org/lang/es/). Cada skill se versiona en su `plugin.json`; `package.json` versiona el CLI.
 
+## [Sin publicar]
+
+### Agregado
+
+- Skill **`test-changes` 0.1.0**: crea y ejecuta las pruebas de los cambios recién implementados siguiendo la guía de pruebas unitarias y de servicio con Vitest (Amplify Gen 2 + React + TypeScript).
+  - Detecta el alcance con git (commits de la rama desde la base, staged, unstaged, untracked, borrados y renombrados) y separa el trabajo actual de cambios ajenos; si hay duda, pregunta o se detiene sin modificar archivos.
+  - Prueba comportamiento, no archivos: matriz comportamiento → unit / int / sin prueba; no duplica pruebas existentes y actualiza las que quedaron obsoletas.
+  - Pruebas junto al código (`*.unit.test.ts(x)`, `*.int.test.ts`), reutilizando `test/mocks`, `test/helpers` y `testing/index.ts`.
+  - Ejecuta pruebas de la feature y de los cambios, `tsc --noEmit` y cobertura con los scripts del proyecto; pruebas de servicio solo con confirmación.
+  - No modifica código de producción sin confirmación ni oculta fallos (`.skip`, `@ts-ignore`, umbrales).
+
 ## [0.2.0] - 2026-09-24
 
 ### Agregado

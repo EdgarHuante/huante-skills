@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const catalog = require('../lib/catalog');
-const { copyRepo, tempDir, runCli } = require('./helpers');
+const { REPO_ROOT, copyRepo, tempDir, runCli } = require('./helpers');
 
 function scaffold(root, ...args) {
   return spawnSync(process.execPath, [path.join(root, 'scripts', 'new-skill.js'), ...args, root], {
@@ -21,7 +21,8 @@ test('adding a second skill keeps the catalog valid and installable', () => {
 
   assert.deepStrictEqual(catalog.validateRepo(root).errors, []);
   const names = catalog.listSkills(root).map((s) => s.name);
-  assert.deepStrictEqual(names, ['demo-skill', 'pr-fix']);
+  const existing = catalog.listSkills(REPO_ROOT).map((s) => s.name);
+  assert.deepStrictEqual(names, ['demo-skill', ...existing].sort());
 
   const configDir = tempDir('cfg');
   const install = runCli(root, ['install', '--all'], { configDir });

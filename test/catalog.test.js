@@ -35,6 +35,24 @@ test('pr-fix keeps its safety rules', () => {
   }
 });
 
+test('test-changes skill is registered and keeps its scope rules', () => {
+  const skill = catalog.listSkills(REPO_ROOT).find((s) => s.name === 'test-changes');
+  assert.ok(skill, 'test-changes not found');
+  assert.strictEqual(skill.plugin, 'test-changes');
+  assert.match(skill.frontmatter.description, /tests/i);
+  assert.match(skill.version, catalog.SEMVER_RE);
+  const body = fs.readFileSync(path.join(REPO_ROOT, 'plugins/test-changes/skills/test-changes/SKILL.md'), 'utf8');
+  for (const expected of [
+    /Only the change set/,
+    /Ownership doubt stops the run/,
+    /Production code is read-only by default/,
+    /Never hide failures/,
+    /\$ARGUMENTS/,
+  ]) {
+    assert.match(body, expected);
+  }
+});
+
 test('parseFrontmatter handles quoted values and CRLF', () => {
   const fm = catalog.parseFrontmatter('---\r\nname: demo\r\ndescription: "a: b"\r\n---\r\nbody');
   assert.deepStrictEqual(fm.data, { name: 'demo', description: 'a: b' });
