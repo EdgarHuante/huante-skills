@@ -10,7 +10,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
 | Skill | Versión | Qué hace |
 | --- | --- | --- |
 | [`pr-fix`](plugins/pr-fix/README.md) | 0.1.0 | Implementa las correcciones pedidas en el Code Review de un Pull Request de GitHub: entiende el proyecto, relaciona cada comentario con el código, planifica cambios mínimos, pide confirmación cuando hace falta, implementa, valida con los comandos reales del proyecto y reporta el estado de cada comentario. Nunca hace commit, push ni escribe en GitHub sin confirmación explícita. |
-| [`test-changes`](plugins/test-changes/README.md) | 0.3.0 | Crea y ejecuta las pruebas de los cambios recién implementados (Vitest, Amplify Gen 2 + React + TypeScript): detecta el alcance con git, decide unitarias vs de servicio, escribe las pruebas junto al código, ejecuta pruebas, TypeScript y cobertura, y reporta qué se probó y qué quedó sin probar. Solo prueba el cambio actual; no hace commit ni cambia código de producción sin confirmación. |
+| [`test-changes`](plugins/test-changes/README.md) | 0.4.0 | Crea y ejecuta las pruebas de los cambios recién implementados (Vitest, Amplify Gen 2 + React + TypeScript): detecta el alcance con git, decide unitarias vs de servicio, escribe las pruebas junto al código, ejecuta pruebas, TypeScript y cobertura, y reporta qué se probó y qué quedó sin probar. Solo prueba el cambio actual; no hace commit ni cambia código de producción sin confirmación. |
 
 ## Requisitos
 
@@ -206,6 +206,7 @@ pnpm test:cov:changed (diagnóstico inicial: archivos afectados, cobertura, lín
       no → leer Uncovered Line #s → pruebas de comportamiento real → repetir
   → pnpm exec eslint (solo archivos que tocó la corrida) → pnpm typecheck (incluye amplify/tsconfig.test.json)
   → Resumen: COMPLETE / INCOMPLETE, archivos analizados, pruebas creadas/actualizadas, comandos, cobertura antes → después, pendientes
+    y la tabla con todas las pruebas de los archivos del cambio (nueva / modificada / existente, resultado)
 ```
 
 La cobertura es condición de término: con pruebas en verde pero cobertura bajo los mínimos (o los umbrales más estrictos del proyecto) la skill sigue escribiendo pruebas. Los archivos del cambio que mide el comando deben quedar completos sobre el umbral, incluido el código que ya existía en ellos; la cobertura baja de archivos ajenos al trabajo actual se reporta aparte y no se toca. No corre comandos que prueban todo el programa (`test:unit`, `test:cov`, `test:legacy`, `lint` sobre `.`, `build`): sus fallas son de código ajeno al cambio. Si no puede llegar al umbral con pruebas reales (código muerto, rama imposible), termina como **INCOMPLETE** y pregunta; nunca baja umbrales ni escribe pruebas sin aserciones.
@@ -239,6 +240,14 @@ Sin prueba: src/features/query/index.ts (re-export, estructural)
 ✓ pnpm exec eslint --max-warnings 0 <5 archivos tocados>
 ✓ pnpm typecheck
 Código de producción modificado: ninguno
+
+| # | Archivo | Prueba | Tipo | Estado | Resultado |
+| --- | --- | --- | --- | --- | --- |
+| 1 | hooks/useBuilderLabels.unit.test.ts | useBuilderLabels › devuelve el nombre del constructor cuando el id existe | unit | nueva | ✓ |
+| 2 | model/builders.unit.test.ts | builders › ordena por nombre, no por id | unit | modificada | ✓ |
+| 3 | amplify/data/builder-auth.int.test.ts | otro usuario no puede actualizarlo | int | nueva | ✓ |
+
+26 pruebas · 4 nuevas · 1 modificada · 21 existentes · 26 ✓ · 0 ✗
 ```
 
 ### Limitaciones

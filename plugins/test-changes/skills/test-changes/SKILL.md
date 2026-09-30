@@ -306,5 +306,20 @@ Start with the result: **COMPLETE** (all completion criteria met) or **INCOMPLET
 6. **Problems**: failing tests with their classification (test / environment / pre-existing / implementation bug), lint and TypeScript findings (fixed, pending your decision, or pre-existing), bugs found and whether they were fixed with the user's approval.
 7. **Production code changed**: normally "none"; otherwise each change and the approval behind it.
 8. `git status --short` of the files this run created or modified, kept apart from the user's own changes.
+9. **Test list**: every test in the test files of the change set (the ones this run created or updated and the ones that already existed for those files), as a Markdown table, grouped by file in the same order as the scope:
+
+   | # | File | Test | Type | Status | Result |
+   | --- | --- | --- | --- | --- | --- |
+   | 1 | `ui/PartUsageSearch.unit.test.tsx` | PartUsageSearch · columna Armador › Reintentar vuelve a leer UserProfile y muestra el nombre | unit | new | ✓ |
+   | 2 | `ui/PartUsageSearch.unit.test.tsx` | PartUsageSearch · columna Armador › muestra el nombre del perfil aunque la copia sea el ID | unit | existing | ✓ |
+   | 3 | `amplify/data/builder-auth.int.test.ts` | otro usuario no puede actualizarlo | int | new | not run |
+
+   - **File**: path relative to the feature (or the repository root outside `src/features`).
+   - **Test**: the full name as the runner reports it (`describe › it`), in the project's language, exactly as written. Each case of an `it.each` is its own row, with its interpolated name.
+   - **Type**: `unit` / `int`.
+   - **Status**: `new` (added by this run), `updated` (existed and this run changed it), `existing` (untouched).
+   - **Result**: ✓ passed, ✗ failed, `not run` (e.g. service tests without a sandbox).
+   - Take names and results from the last run, not from memory: run the change set's test files once more with a machine-readable reporter written outside the repository, e.g. `pnpm exec vitest run --project <unit project> <test files…> --reporter=json --outputFile=<temp dir>/test-changes-results.json`, and read that file. Service tests that weren't run are listed from their source with `not run`.
+   - Put the table headers in the user's language. After the table, one line with the totals: `174 tests · 67 new · 5 updated · 102 existing · 174 ✓ · 0 ✗`.
 
 Don't commit. If the user asks for a commit, stage only the files from this run and follow the repository's commit conventions.

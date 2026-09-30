@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Skill **`test-changes` 0.4.0**: el resumen termina con una tabla de todas las pruebas de los archivos del cambio (archivo, nombre completo `describe › it`, tipo, estado nueva/modificada/existente, resultado) y una línea de totales. Nombres y resultados salen de una última corrida con reporter JSON, no de memoria.
 - Skill **`test-changes` 0.3.0**: revisión final de lint y tipos.
   - ESLint con las opciones del script `lint` del proyecto, pero solo sobre los archivos que tocó la corrida y los del cambio; corrige sus pruebas, pregunta antes de tocar producción y reporta lo previo.
   - Usa el script `typecheck` del proyecto en lugar de `npx tsc --noEmit`, para incluir también los tsconfig de pruebas de backend (p. ej. `amplify/tsconfig.test.json`).

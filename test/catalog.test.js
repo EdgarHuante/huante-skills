@@ -51,6 +51,7 @@ test('test-changes skill is registered and keeps its scope rules', () => {
     /Coverage is a completion condition/,
     /## Completion criteria/,
     /Lint and TypeScript/,
+    /\*\*Test list\*\*/,
     /Whole-project commands are out of scope/,
     /Coverage loop \(mandatory\)/,
     /\$ARGUMENTS/,
