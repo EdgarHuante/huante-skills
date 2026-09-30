@@ -10,7 +10,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - Detecta el alcance con git (commits de la rama desde la base, staged, unstaged, untracked, borrados y renombrados) y separa el trabajo actual de cambios ajenos; si hay duda, pregunta o se detiene sin modificar archivos.
   - Prueba comportamiento, no archivos: matriz comportamiento → unit / int / sin prueba; no duplica pruebas existentes y actualiza las que quedaron obsoletas.
   - Pruebas junto al código (`*.unit.test.ts(x)`, `*.int.test.ts`), reutilizando `test/mocks`, `test/helpers` y `testing/index.ts`.
-  - Ejecuta pruebas de la feature y de los cambios, `tsc --noEmit` y cobertura con los scripts del proyecto; pruebas de servicio solo con confirmación.
+  - Usa `pnpm test:cov:changed` (o el script equivalente del proyecto) como diagnóstico al inicio, lo cruza con git, crea las pruebas que faltan para los cambios y lo vuelve a ejecutar hasta cerrar los huecos reales; termina con `npx tsc --noEmit`.
+  - Pruebas de servicio solo con confirmación.
   - No modifica código de producción sin confirmación ni oculta fallos (`.skip`, `@ts-ignore`, umbrales).
 
 ## [0.2.0] - 2026-09-24

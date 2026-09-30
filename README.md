@@ -24,7 +24,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
   gh auth status
   ```
 
-- Para `test-changes`: proyecto con **Vitest** configurado (idealmente con los scripts de la guía: `test:feature`, `test:changed`, `test:cov:changed`). Las pruebas de servicio requieren un sandbox de Amplify de pruebas ya desplegado.
+- Para `test-changes`: proyecto con **Vitest** configurado y un script de cobertura de cambios (`test:cov:changed` o equivalente; también usa `test:feature` y `test:changed` si existen). Las pruebas de servicio requieren un sandbox de Amplify de pruebas ya desplegado.
 
 ## Instalación
 
@@ -195,16 +195,19 @@ Mantén los permisos de Claude Code en modo con confirmación; no uses "bypass p
 Ejecútala dentro del proyecto, al terminar una implementación y antes del commit (o con los commits ya hechos en la rama). Flujo resumido:
 
 ```text
-Descubrir cambios (base, commits de la rama, staged, unstaged, untracked, borrados/renombrados)
-  → Decidir qué cambios son del trabajo actual (si hay duda, pregunta o se detiene sin tocar nada)
+pnpm test:cov:changed (diagnóstico inicial: archivos afectados, cobertura, líneas sin cubrir)
+  → Descubrir cambios con git y cruzarlos con el diagnóstico (si hay duda de alcance, pregunta o se detiene)
   → Entender el comportamiento nuevo/modificado (archivo completo, usos, specs, schema y allow.*)
   → Revisar pruebas existentes (vitest.config, scripts, test/mocks, test/helpers, testing/index.ts)
-  → Matriz: comportamiento → unit / int / sin prueba (estructural o ya cubierto)
+  → Matriz: comportamiento → unit / int / sin prueba, usando las líneas sin cubrir del diff
   → Escribir o actualizar *.unit.test.ts(x) / *.int.test.ts junto al código
-  → Ejecutar pruebas de la feature y de los cambios (servicio solo con confirmación)
-  → npx tsc --noEmit → cobertura con los scripts del proyecto
-  → Resumen: archivos analizados, pruebas creadas/actualizadas, comandos, cobertura, pendientes
+  → Ejecutar las pruebas (servicio solo con confirmación)
+  → pnpm test:cov:changed otra vez → cerrar huecos reales (máx. 2 rondas extra)
+  → npx tsc --noEmit
+  → Resumen: archivos analizados, pruebas creadas/actualizadas, comandos, cobertura antes → después, pendientes
 ```
+
+Si el proyecto no tiene `test:cov:changed`, busca el script equivalente en `package.json`; si no hay, usa Vitest con `--coverage.include` sobre los archivos cambiados, sin crear scripts nuevos.
 
 Ejemplo de resumen:
 
@@ -227,8 +230,9 @@ Sin prueba: src/features/query/index.ts (re-export, estructural)
 
 ✓ pnpm test:feature -- query unit — 24 passed
 ✓ pnpm test:int — 2 passed
+✓ pnpm test:cov:changed — antes 38% líneas → después 91% líneas, 86% ramas (meta 80%)
+  queda sin cubrir builders.ts:57 (rama defensiva inalcanzable)
 ✓ npx tsc --noEmit
-✓ pnpm test:feature -- query unit --coverage — 91% líneas, 86% ramas (meta 80%)
 Código de producción modificado: ninguno
 ```
 

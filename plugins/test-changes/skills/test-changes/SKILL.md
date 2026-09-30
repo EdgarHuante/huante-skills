@@ -1,12 +1,21 @@
 ---
 name: test-changes
-description: Create and run the tests for the changes just implemented in a project, following the team's Vitest testing guide for Amplify Gen 2 + React + TypeScript (unit and service tests, no E2E). Detects the real change set with git (branch commits since the base, staged, unstaged and untracked files), works out which behavior was added or modified, decides unit vs service test for each behavior, writes `*.unit.test.ts(x)` / `*.int.test.ts` next to the code reusing the project's mocks, factories and helpers, runs the affected tests, TypeScript and coverage with the project's own scripts, and reports what was tested and what was left untested and why. Never tests code outside the change set and never changes production code just to raise coverage. Use after finishing an implementation, e.g. "/test-changes", "/test-changes --base origin/integration", "/test-changes src/features/query", "write the tests for what I just changed".
+description: Create and run the tests for the changes just implemented, following the team's Vitest testing guide for Amplify Gen 2 + React + TypeScript (unit and service tests, no E2E). Runs `pnpm test:cov:changed` (or the project's equivalent script) first as a diagnostic, cross-checks it with git to scope the current work, reads the changed code to find the new or modified behavior, writes the missing `*.unit.test.ts(x)` and, for `allow.*` rules and custom queries/mutations, `*.int.test.ts` next to the code reusing the project's mocks and helpers, re-runs `test:cov:changed` until the real gaps are closed, then runs `npx tsc --noEmit` and reports what was tested, what wasn't and why. Never tests code outside the change set, never adds tests just to raise coverage, never changes production code without asking. Use after finishing an implementation, e.g. "/test-changes", "/test-changes --base origin/integration", "/test-changes src/features/query", "write the tests for what I just changed".
 argument-hint: "[--base <ref>] [paths...]"
 ---
 
 # /test-changes — Test what was just implemented
 
-You write and run the tests for **the change the user just implemented**, nothing else. You find that change with git, understand the behavior it adds or modifies, decide how each behavior must be tested according to the team's testing guide, write the tests next to the code following the project's existing conventions, run them together with TypeScript and coverage, and report the result.
+You write and run the tests for **the change the user just implemented**, nothing else. You start from the project's changed-files coverage command (`pnpm test:cov:changed`) as a diagnostic, confirm the scope with git, understand the behavior the change adds or modifies, write the tests that are missing according to the team's testing guide, re-run the diagnostic until every real gap is closed, check TypeScript and report the result.
+
+Main loop:
+
+```text
+test:cov:changed (diagnostic) → git scope → understand the change → existing tests → test matrix
+  → write unit/int tests → run them → test:cov:changed again → close real gaps → npx tsc --noEmit → summary
+```
+
+The coverage report is a **diagnostic, not the goal**: it tells you which changed files have no tests or have uncovered lines; you decide from the code which of those lines are behavior that needs a test.
 
 Argument received: `$ARGUMENTS` (optional):
 
@@ -27,7 +36,8 @@ Talk to the user in the language they are writing in (or the one their `CLAUDE.m
 6. **Use the project's own commands and infrastructure.** Scripts, configs, mocks and helpers come from the repository. Never invent a runner setup, a new config file, a new dependency or a new shared mock when the project already has one; ask before adding any of them.
 7. **No remote side effects without confirmation.** Service tests hit a real Amplify sandbox. Never deploy (`ampx sandbox`, `ampx pipeline-deploy`), never run against a non-test environment, and ask before running service tests (Step 6.3). Never print secrets from `.env*` or `amplify_outputs.json`.
 8. **No commit, no push, no destructive git.** You leave the tests in the working tree. Never `git stash`, `reset`, `checkout -- <file>`, `restore` or `clean`.
-9. **Every user decision is an `AskUserQuestion`.** Max 4 options; the recommended option first with ` (Recommended)` in its label. In non-interactive mode (`claude -p`) you can't ask: stop and print what needs deciding.
+9. **Coverage is a diagnostic, not a target.** `test:cov:changed` tells you where tests may be missing; the code tells you whether a test is needed. Never write a test only to turn a line green.
+10. **Every user decision is an `AskUserQuestion`.** Max 4 options; the recommended option first with ` (Recommended)` in its label. In non-interactive mode (`claude -p`) you can't ask: stop and print what needs deciding.
 
 ---
 
@@ -66,12 +76,40 @@ These rules come from the team's guide "Pruebas unitarias y de servicio con Vite
 
 ---
 
+## Changed-coverage command
+
+The flow is built around the project's changed-files coverage command. Resolve it once, before Step 0:
+
+1. `package.json` script `test:cov:changed` → run it with the project's package manager (from the lockfile: `pnpm-lock.yaml` → `pnpm test:cov:changed`, `package-lock.json` → `npm run test:cov:changed`, `yarn.lock` → `yarn test:cov:changed`, `bun.lock`/`bun.lockb` → `bun run test:cov:changed`).
+2. If it doesn't exist, look in `package.json` for an equivalent: a script whose name matches `cov`/`coverage` + `changed`/`related`/`diff` (e.g. `test:coverage:changed`, `coverage:changed`), or whose command runs Vitest with coverage over the changed files (`--changed`, `vitest related`, a `scripts/*changed*coverage*` file). Read the script (and the file it runs) to confirm what it does before using it.
+3. If there is no equivalent, don't invent a script and don't edit `package.json`. When a coverage provider is installed (e.g. `@vitest/coverage-v8`), use Vitest directly over the change set once Step 1 has it: `npx vitest run --project <unit project> --coverage --coverage.include=<changed source file>` (one `--coverage.include` per file), plus the tests related to those files (`npx vitest related --run <changed source files…>` when the project's Vitest supports it). Say in the summary that no project script existed. With no coverage provider, continue without the diagnostic (git scope + code reading only), say so, and don't install one without asking.
+
+Read the script before the first run to learn: its default base (e.g. `origin/integration`) and whether it accepts `--base <ref>`; which files it measures (coverage include/exclude globs); whether it enforces thresholds (a non-zero exit only because coverage is below target is an expected diagnostic result, not a broken run); and where it writes reports (e.g. `coverage/coverage-summary.json` with the `json-summary` reporter). If the user passed `--base`, forward it when the script supports it; if it doesn't, tell the user the script uses its own base.
+
+The command runs unit tests only; service tests (`*.int.test.ts`) never count toward it.
+
+---
+
+## Step 0 — Coverage diagnostic (first run)
+
+1. Run the changed-coverage command resolved above. It is read-only for the source; run it before editing anything.
+2. If it fails for a reason other than coverage (tests failing, compile error, missing dependency, bad base ref), record it: failing tests in the change set are part of the work (Step 6); failures elsewhere are reported as pre-existing; a broken environment (dependencies not installed, base ref missing) is explained, and you ask before installing or fetching.
+3. Extract from the output (prefer the JSON summary file when it exists; otherwise the text table `File | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s`):
+   - the source files it measured (the changed/affected files),
+   - per file: statements/branches/functions/lines and the uncovered line ranges,
+   - files at 0% or with no test at all,
+   - the tests it ran and their result,
+   - whether the thresholds passed.
+4. Keep this as the **initial diagnostic**. It feeds Step 1 (scope cross-check) and Step 4 (where tests are missing). Don't write tests yet.
+
+---
+
 ## Step 1 — Discover the change set
 
 1. `git rev-parse --show-toplevel` — if it fails: "This folder is not a git repository. Run `/test-changes` inside the project." **Stop.** Work from the repository root.
 2. **Base ref** (first match wins):
    1. `--base <ref>` from `$ARGUMENTS` (must match `^[A-Za-z0-9._/-]{1,255}$`, no `..`, not starting with `-`, and `git rev-parse --verify "<ref>^{commit}"` must succeed).
-   2. The base the project itself uses for changed tests: `--changed <ref>` in a `test:changed` script, a `--base` default in a changed-coverage script, or a base branch named in `CLAUDE.md`/`AGENTS.md`.
+   2. The base the project itself uses for changed tests: the default base of the changed-coverage command (`test:cov:changed`), `--changed <ref>` in a `test:changed` script, or a base branch named in `CLAUDE.md`/`AGENTS.md`. Using the same base as the diagnostic keeps both file lists comparable.
    3. The PR base if a PR exists for the branch and `gh` is available: `gh pr view --json baseRefName --jq .baseRefName` (prefixed with `origin/`).
    4. `git symbolic-ref --short refs/remotes/origin/HEAD`, then `origin/main`, `origin/master`.
 
@@ -96,13 +134,18 @@ These rules come from the team's guide "Pruebas unitarias y de servicio con Vite
    - Can't tell at all (e.g. no branch commits and many uncommitted changes across unrelated features, detached HEAD without a clear base) → explain what you see and why the scope is unclear, then ask the same question. In non-interactive mode, **stop** here without modifying anything.
 6. If `paths...` were given, intersect the change set with them. If the result is empty, say so and **stop**.
 7. If the change set contains no production source (only docs, config, tests or generated files), say there is no behavior to test, list what changed, and **stop** (if test files changed, offer to run them as in Step 6).
-8. Show the inventory: base and merge-base, number of commits, and the file list with status and kind (`A  src/features/query/model/builders.ts · source`).
+8. **Cross-check with the diagnostic** (Step 0):
+   - Measured by the command and in the change set → in scope; its coverage numbers guide Step 4.
+   - Measured by the command but excluded by the ownership check or `paths...` → out of scope: ignore its numbers, never write tests for it.
+   - In the change set but not measured (coverage-excluded globs, `amplify/data/resource.ts` schemas and auth rules, files outside the coverage roots) → still in scope; analyze it in Step 2 (auth rules and custom operations usually need service tests, which coverage never measures).
+   - The command's file list and git disagree beyond these cases (e.g. different base) → say so, and trust the git scope.
+9. Show the inventory: base and merge-base, number of commits, and the file list with status, kind and initial coverage (`A  src/features/query/model/builders.ts · source · 42% lines, no test`).
 
 ---
 
 ## Step 2 — Understand the change
 
-For each production file in the change set:
+For each production file in the change set (start with the ones the diagnostic flags: no test, 0%, uncovered lines inside the diff, but analyze all of them — a file at 100% can still have new behavior that no test asserts, because coverage only proves lines ran):
 
 1. Read its diff (`git diff "<mergeBase>" -- "<path>"`, which includes uncommitted changes to tracked files; the whole file for untracked ones).
 2. Read the **whole file**, not only the hunks, and what it needs to be understood: the types it uses, the functions it calls, the feature's `index.ts`, and the callers of changed exports (`Grep` for the symbol and its imports). Follow the data flow far enough to know inputs, outputs and side effects. Don't write a test from the diff alone when context is missing.
@@ -150,6 +193,8 @@ Build it internally (show it only if the user asks or when a decision needs it).
 
 **Depth**: one test per meaningful case (happy path, each introduced branch, error path, boundary the change actually handles). Don't enumerate inputs that exercise the same branch. Don't test third-party libraries, React itself or Amplify's generated code.
 
+**Using the diagnostic**: map each uncovered range from Step 0 that falls inside the diff (or inside code the change made reachable) to the behavior it implements. Behavior not yet in the matrix → add a row. Uncovered lines outside the diff and outside the change's reach are pre-existing gaps: don't test them. Uncovered lines that are unreachable, purely defensive or trivial (a re-export, a type guard that can't fail) → note them, no row.
+
 Check the matrix against the inventory: every production file in the change set must have at least one row (even if `none`), so no change is forgotten.
 
 ---
@@ -168,6 +213,8 @@ Check the matrix against the inventory: every production file in the change set 
 
 ## Step 6 — Run the tests
 
+Run the new and updated tests quickly before re-running the diagnostic, so failures are fixed with a short loop.
+
 1. **Pick the commands** from the project (Step 3), in this priority:
    1. Tests of the affected feature(s): e.g. `npm run test:feature -- <feature> unit` (`all` when there are service tests and they may run, see 3).
    2. Tests of the changed files: e.g. `npm run test:changed`, or `npx vitest run --project <unit project> <test files…>` when there is no script.
@@ -184,18 +231,22 @@ Check the matrix against the inventory: every production file in the change set 
 
 ---
 
-## Step 7 — TypeScript
+## Step 7 — Re-run the diagnostic and close the gaps
 
-Run `npx tsc --noEmit` (or the project's `typecheck`/`type-check` script, or `tsc -p <config> --noEmit` for each relevant tsconfig when the project has several; check which ones include the test files). Errors in the new/updated test files are yours to fix. Errors elsewhere: check whether they come from changed files; report pre-existing ones (worktree comparison as in Step 6.4), don't fix them. If no tsconfig includes the tests, say so.
+1. Run the changed-coverage command again (same command and base as Step 0).
+2. Compare with the initial diagnostic, per file in scope: tests that now run, coverage before → after, remaining uncovered ranges, thresholds.
+3. For every remaining uncovered range **in the change set**, decide from the code:
+   - It's a behavior (a branch, error path, fallback, condition) that no test exercises → add the test (Step 4 → Step 5 → Step 6) and re-run.
+   - It's unreachable, purely defensive, trivial or outside the change → leave it, and list it with the reason in the summary.
+   - It needs a real backend (auth rules, custom operations) → it's covered by service tests, which this report never counts; say so.
+4. Stop iterating when every remaining gap in the change set is explained, or after 2 extra rounds; report what's left. Thresholds still failing after that are reported with the explanation per file, never forced.
+5. Never add assertion-free tests, tests of code outside the change set, or production-code changes to raise the number. Never lower thresholds or edit coverage globs.
 
 ---
 
-## Step 8 — Coverage
+## Step 8 — TypeScript
 
-1. Use the project's coverage commands: feature coverage (e.g. `npm run test:feature -- <feature> unit --coverage`) and changed-files coverage when it exists (e.g. `npm run test:cov:changed`). Without scripts, and only when a coverage provider is installed: `npx vitest run --project <unit project> --coverage --coverage.include=<changed source file>` (one flag per file).
-2. Report statements/branches/functions/lines for the changed source files (or the feature) against the thresholds in the config and the guide (80% general; higher for Lambdas and utilities when configured).
-3. Below target: look at the uncovered lines **of the changed code**. If they correspond to a behavior missing from the matrix, add the test. If they're unreachable, defensive or outside the change set, report them. Never add assertion-free tests or touch production code to raise the number.
-4. If no coverage provider or config exists, say so; don't install one without asking.
+Last check, after all tests are written: run `npx tsc --noEmit` (or the project's `typecheck`/`type-check` script, or `tsc -p <config> --noEmit` for each relevant tsconfig when the project has several; check which ones include the test files). Errors in the new/updated test files are yours to fix; after fixing them, re-run the affected tests. Errors elsewhere: check whether they come from changed files; report pre-existing ones (worktree comparison as in Step 6.4), don't fix them. If no tsconfig includes the tests, say so.
 
 ---
 
@@ -206,8 +257,8 @@ Report, concisely:
 1. **Scope**: base and merge-base; the change-set files analyzed (status + kind); files excluded by the user or the ownership check, with the reason.
 2. **Tests created** (new files) and **tests updated** (existing files), each with the behaviors it covers (`T1 returns the builder name when the id exists — unit`).
 3. **Not tested and why**: structural changes, behaviors already covered (naming the existing test), service tests written but not run, anything not testable here.
-4. **Commands run**, each with ✓ / ✗ / not run and a one-line result (`✓ pnpm test:feature -- query unit — 24 passed`).
-5. **Coverage** per changed file or feature vs target, if computed.
+4. **Commands run**, each with ✓ / ✗ / not run and a one-line result (`✓ pnpm test:feature -- query unit — 24 passed`), including the changed-coverage command used (or why it wasn't available).
+5. **Coverage** from the changed-coverage command, per file in scope: before (Step 0) → after (Step 7) vs target, and every remaining gap with its reason.
 6. **Problems**: failing tests with their classification (test / environment / pre-existing / implementation bug), TypeScript errors, bugs found and whether they were fixed with the user's approval.
 7. **Production code changed**: normally "none"; otherwise each change and the approval behind it.
 8. `git status --short` of the files this run created or modified, kept apart from the user's own changes.
