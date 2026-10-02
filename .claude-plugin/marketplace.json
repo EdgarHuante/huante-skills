@@ -18,6 +18,12 @@
       "description": "Create and run the tests for the changes just implemented (Vitest, Amplify Gen 2 + React + TypeScript): detects the git change set, tests only the new or modified behavior, runs tests, TypeScript and coverage.",
       "source": "./plugins/test-changes",
       "category": "development"
+    },
+    {
+      "name": "spec-flow",
+      "description": "Turn an informal change request into one or more small, project-grounded specs (split by functional change, reviewed for architecture and design) compatible with /spec and /spec-impl, then stop for review before any implementation.",
+      "source": "./plugins/spec-flow",
+      "category": "development"
     }
   ]
 }

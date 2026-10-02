@@ -4,6 +4,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Agregado
+
+- Skill **`spec-flow` 0.1.0**: convierte un prompt informal en uno o varios specs listos para `/spec-impl`.
+  - Investiga el proyecto real (CLAUDE.md, docs, specs previos, feature, componentes, hooks, modelos, tests) antes de escribir; pregunta solo decisiones funcionales que el código no responde.
+  - Decide entre 1 y N specs por cambio funcional, con chequeos anti-división (nada de un spec por archivo, ni specs de solo tipos/tests/docs) y dependencias explícitas.
+  - Revisión Atomic Design, Feature-Based Architecture, KISS, DRY y escalabilidad que corrige los specs antes de mostrarlos; sección `Architecture & Design` breve en cada spec.
+  - Un archivo `specs/NN-slug.md` por spec con el formato del `template.md` de `/spec`, en estado `Draft`.
+  - Pausa obligatoria con resumen y 5 opciones; nada se implementa sin aprobación explícita.
+  - Tras aprobar: marca `Approved`, ofrece commit de los specs y entrega cada spec a `/spec-impl`, una rama por spec en orden de dependencias.
+
 ### Cambiado
 
 - Skill **`test-changes` 0.4.0**: el resumen termina con una tabla de todas las pruebas de los archivos del cambio (archivo, nombre completo `describe › it`, tipo, estado nueva/modificada/existente, resultado) y una línea de totales. Nombres y resultados salen de una última corrida con reporter JSON, no de memoria.

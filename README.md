@@ -11,6 +11,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
 | --- | --- | --- |
 | [`pr-fix`](plugins/pr-fix/README.md) | 0.1.0 | Implementa las correcciones pedidas en el Code Review de un Pull Request de GitHub: entiende el proyecto, relaciona cada comentario con el código, planifica cambios mínimos, pide confirmación cuando hace falta, implementa, valida con los comandos reales del proyecto y reporta el estado de cada comentario. Nunca hace commit, push ni escribe en GitHub sin confirmación explícita. |
 | [`test-changes`](plugins/test-changes/README.md) | 0.4.0 | Crea y ejecuta las pruebas de los cambios recién implementados (Vitest, Amplify Gen 2 + React + TypeScript): detecta el alcance con git, decide unitarias vs de servicio, escribe las pruebas junto al código, ejecuta pruebas, TypeScript y cobertura, y reporta qué se probó y qué quedó sin probar. Solo prueba el cambio actual; no hace commit ni cambia código de producción sin confirmación. |
+| [`spec-flow`](plugins/spec-flow/README.md) | 0.1.0 | Convierte un prompt informal en uno o varios specs pequeños y aterrizados al proyecto: investiga código y docs, mejora requisitos sin inventar, divide por cambio funcional (nunca por archivo), revisa Atomic Design, Feature-Based Architecture, KISS, DRY y escalabilidad corrigiendo los specs, escribe un `specs/NN-slug.md` por spec y se detiene para tu revisión. Tras tu aprobación entrega cada spec a `/spec-impl`, uno por rama, en orden de dependencias. |
 
 ## Requisitos
 
@@ -25,6 +26,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
   ```
 
 - Para `test-changes`: proyecto con **Vitest** configurado y un script de cobertura de cambios (`test:cov:changed` o equivalente; también usa `test:feature` y `test:changed` si existen). Las pruebas de servicio requieren un sandbox de Amplify de pruebas ya desplegado.
+- Para `spec-flow`: las skills **`/spec`** y **`/spec-impl`** de [Klerith/fernando-skills](https://github.com/Klerith/fernando-skills) instaladas (usa el `template.md` de `/spec` como formato y entrega la implementación a `/spec-impl`).
 
 ## Instalación
 
@@ -257,6 +259,44 @@ Código de producción modificado: ninguno
 - Si la base remota está desactualizada, el alcance puede incluir cambios de más; usa `--base` o haz `git fetch` antes.
 - En `claude -p` (modo no interactivo) no puede preguntar: si el alcance es dudoso se detiene sin modificar archivos.
 
+## Uso de `spec-flow`
+
+```text
+/spec-flow
+
+Incorporar gamificación al registro de bitácoras: reconocimientos por registros
+completos o constantes y progreso visible del usuario. Alinear con GGD-11.
+```
+
+(Instalada como plugin: `/spec-flow:spec-flow …`.)
+
+Ejecútala dentro del proyecto. Es una capa de orquestación sobre `/spec` (formato) y `/spec-impl` (implementación); no duplica su lógica. Flujo resumido:
+
+```text
+Entender el prompt (objetivo, comportamientos B1…Bn, menciones, decisiones explícitas, incógnitas)
+  → Investigar el proyecto (CLAUDE.md, docs, specs previos, feature, componentes, hooks, modelos, tests, reutilizables)
+  → Preguntar solo decisiones funcionales que el código no responde
+  → ¿1 o N specs? (por cambio funcional; chequeos anti-división; dependencias reales)
+  → Redactar cada spec con el template de /spec + comportamiento esperado, áreas afectadas, pruebas
+  → Revisión Architecture & Design (corrige los specs, no solo opina)
+  → Escribir specs/NN-slug.md (Draft), uno por spec
+  → ⏸ PAUSA: resumen por spec + 5 opciones; termina el turno
+  → Aprobado → Approved → ¿implementar? → commit de specs (opcional) → /spec-impl NN-slug, uno por rama
+```
+
+Reglas clave:
+
+- **No escribe código** antes de tu aprobación; solo los archivos de spec de la corrida.
+- **No divide por archivo** ni crea specs de solo tipos, tests o docs; con más de 5 specs propone un primer corte.
+- **No inventa requisitos**: lo inferido del código queda marcado en Decisions; lo funcional dudoso se pregunta.
+- Cada spec trae una sección `Architecture & Design` corta con veredicto por principio: `Not applicable`, `Complies`, `Adjusted` (qué cambió) u `Open decision`.
+
+### Limitaciones
+
+- `/spec-impl` trae `disable-model-invocation: true`: `spec-flow` no puede invocarla; te muestra el comando exacto (`/spec-impl 04-slug`) para que lo escribas.
+- Documentos o tickets externos (Jira, Confluence) solo se leen si hay una herramienta conectada; si no, lo indica en el resumen.
+- En `claude -p` (modo no interactivo) no puede preguntar ni pausar de forma útil: escribe los specs en `Draft` y se detiene.
+
 ## Estructura del repositorio
 
 ```text
@@ -271,7 +311,8 @@ huante-skills/
 │   │   └── skills/
 │   │       └── pr-fix/
 │   │           └── SKILL.md      # la skill
-│   └── test-changes/             # misma estructura
+│   ├── test-changes/             # misma estructura
+│   └── spec-flow/                # misma estructura
 ├── bin/huante-skills.js          # CLI de instalación (sin dependencias)
 ├── lib/catalog.js                # lectura y validación del catálogo (CLI, scripts y tests)
 ├── scripts/
