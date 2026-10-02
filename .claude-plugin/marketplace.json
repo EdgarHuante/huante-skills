@@ -21,7 +21,7 @@
     },
     {
       "name": "spec-flow",
-      "description": "Turn an informal change request into one or more small, project-grounded specs (split by functional change, reviewed for architecture and design) compatible with /spec and /spec-impl, then stop for review before any implementation.",
+      "description": "Turn an informal change request into one or more small, project-grounded specs (split by functional change, reviewed for architecture and design) written in Spanish under docs/ggin-N/specs/feat/ggin-N/<slug>.md with branch feat/ggin-N/<slug>, compatible with /spec and /spec-impl, then stop for review before any implementation.",
       "source": "./plugins/spec-flow",
       "category": "development"
     }

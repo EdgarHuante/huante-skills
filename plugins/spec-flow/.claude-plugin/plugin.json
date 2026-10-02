@@ -1,7 +1,7 @@
 {
   "name": "spec-flow",
-  "version": "0.1.0",
-  "description": "Turn an informal change request into one or more small, project-grounded specs compatible with /spec and /spec-impl, with an architecture & design review and a mandatory pause before implementation.",
+  "version": "0.2.0",
+  "description": "Turn an informal change request into one or more small, project-grounded specs written in Spanish under docs/ggin-N/specs/feat/ggin-N/<slug>.md (branch feat/ggin-N/<slug>), compatible with /spec and /spec-impl, with an architecture & design review and a mandatory pause before implementation.",
   "author": {
     "name": "Edgar Huante",
     "url": "https://github.com/EdgarHuante"

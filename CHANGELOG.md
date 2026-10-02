@@ -4,6 +4,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Cambiado
+
+- Skill **`spec-flow` 0.2.0**: specs en español con estructura `ggin-N`.
+  - Todo el texto del spec (títulos, secciones, explicaciones) en español; identificadores de código tal como existen en el proyecto, en backticks, sin traducir ni inventar.
+  - Un identificador `ggin-N` por corrida: `MAX(N) + 1` sobre carpetas `docs/ggin-N/` y archivos `docs/ggin-N.md` (sin asumir números consecutivos; `ggin-01` si no hay ninguno). Se calcula en el contexto de sesión y se reverifica antes de escribir; se mantiene fijo en las iteraciones de la pausa.
+  - Ruta `docs/ggin-N/specs/feat/ggin-N/<slug>.md` con slug funcional en inglés; rama derivada `feat/ggin-N/<slug>` registrada en el encabezado (`**Rama:**`). Reemplaza `specs/NN-slug.md`.
+  - Estructura del spec en español (Objetivo, Contexto, Alcance, Comportamiento esperado, Requisitos funcionales, Consideraciones técnicas, Áreas afectadas, Plan de implementación, Arquitectura y diseño, Criterios de aceptación, Dependencias, Pruebas, Decisiones…), estados `Borrador`/`Aprobado`.
+  - Veredictos de arquitectura `Cumple` / `Requiere ajuste` / `No aplica`, un subencabezado por principio, reflejando el spec ya ajustado.
+  - Verificación obligatoria (idioma, id, estructura, naming, rama, arquitectura, alcance) antes de la pausa.
+  - No crea ramas; antes de entregar a `/spec-impl` comprueba que soporte la convención `ggin` y, si no, se detiene y lo indica.
+
 ### Agregado
 
 - Skill **`spec-flow` 0.1.0**: convierte un prompt informal en uno o varios specs listos para `/spec-impl`.

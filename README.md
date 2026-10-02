@@ -11,7 +11,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
 | --- | --- | --- |
 | [`pr-fix`](plugins/pr-fix/README.md) | 0.1.0 | Implementa las correcciones pedidas en el Code Review de un Pull Request de GitHub: entiende el proyecto, relaciona cada comentario con el código, planifica cambios mínimos, pide confirmación cuando hace falta, implementa, valida con los comandos reales del proyecto y reporta el estado de cada comentario. Nunca hace commit, push ni escribe en GitHub sin confirmación explícita. |
 | [`test-changes`](plugins/test-changes/README.md) | 0.4.0 | Crea y ejecuta las pruebas de los cambios recién implementados (Vitest, Amplify Gen 2 + React + TypeScript): detecta el alcance con git, decide unitarias vs de servicio, escribe las pruebas junto al código, ejecuta pruebas, TypeScript y cobertura, y reporta qué se probó y qué quedó sin probar. Solo prueba el cambio actual; no hace commit ni cambia código de producción sin confirmación. |
-| [`spec-flow`](plugins/spec-flow/README.md) | 0.1.0 | Convierte un prompt informal en uno o varios specs pequeños y aterrizados al proyecto: investiga código y docs, mejora requisitos sin inventar, divide por cambio funcional (nunca por archivo), revisa Atomic Design, Feature-Based Architecture, KISS, DRY y escalabilidad corrigiendo los specs, escribe un `specs/NN-slug.md` por spec y se detiene para tu revisión. Tras tu aprobación entrega cada spec a `/spec-impl`, uno por rama, en orden de dependencias. |
+| [`spec-flow`](plugins/spec-flow/README.md) | 0.2.0 | Convierte un prompt informal en uno o varios specs pequeños y aterrizados al proyecto: investiga código y docs, mejora requisitos sin inventar, divide por cambio funcional (nunca por archivo), revisa Atomic Design, Feature-Based Architecture, KISS, DRY y escalabilidad corrigiendo los specs, asigna un `ggin-N` incremental por corrida, escribe cada spec en español en `docs/ggin-N/specs/feat/ggin-N/<slug>.md` (rama `feat/ggin-N/<slug>`) y se detiene para tu revisión. Tras tu aprobación entrega cada spec a `/spec-impl`, uno por rama, en orden de dependencias. |
 
 ## Requisitos
 
@@ -279,9 +279,11 @@ Entender el prompt (objetivo, comportamientos B1…Bn, menciones, decisiones exp
   → ¿1 o N specs? (por cambio funcional; chequeos anti-división; dependencias reales)
   → Redactar cada spec con el template de /spec + comportamiento esperado, áreas afectadas, pruebas
   → Revisión Architecture & Design (corrige los specs, no solo opina)
-  → Escribir specs/NN-slug.md (Draft), uno por spec
+  → Asignar ggin-N = MAX(ggin-N en docs/, carpetas y .md) + 1, uno solo por corrida
+  → Escribir docs/ggin-N/specs/feat/ggin-N/<slug>.md (Borrador, en español), uno por spec
+  → Verificación: idioma, id, estructura, naming, rama, arquitectura, alcance
   → ⏸ PAUSA: resumen por spec + 5 opciones; termina el turno
-  → Aprobado → Approved → ¿implementar? → commit de specs (opcional) → /spec-impl NN-slug, uno por rama
+  → Aprobado → ¿implementar? → commit de specs (opcional) → /spec-impl <ruta del spec>, rama feat/ggin-N/<slug>
 ```
 
 Reglas clave:
@@ -289,11 +291,15 @@ Reglas clave:
 - **No escribe código** antes de tu aprobación; solo los archivos de spec de la corrida.
 - **No divide por archivo** ni crea specs de solo tipos, tests o docs; con más de 5 specs propone un primer corte.
 - **No inventa requisitos**: lo inferido del código queda marcado en Decisions; lo funcional dudoso se pregunta.
-- Cada spec trae una sección `Architecture & Design` corta con veredicto por principio: `Not applicable`, `Complies`, `Adjusted` (qué cambió) u `Open decision`.
+- Cada spec trae una sección `Arquitectura y diseño` corta con veredicto por principio: `Cumple`, `Requiere ajuste` (el spec ya se ajustó) o `No aplica`.
+- **Specs en español**, identificadores de código tal como existen en el proyecto (en backticks, sin traducir ni inventar).
+- **Un `ggin-N` por corrida**: `MAX(N) + 1` contando carpetas `docs/ggin-N/` y archivos `docs/ggin-N.md`; si no hay ninguno, `ggin-01`. Una tarjeta mencionada (p. ej. GGIN-15) va en `Origen`, no fija el id.
+- **Ruta y rama sincronizadas**: `docs/ggin-13/specs/feat/ggin-13/solution-problems.md` → rama `feat/ggin-13/solution-problems`. `spec-flow` nunca crea la rama; lo hace `/spec-impl`.
 
 ### Limitaciones
 
-- `/spec-impl` trae `disable-model-invocation: true`: `spec-flow` no puede invocarla; te muestra el comando exacto (`/spec-impl 04-slug`) para que lo escribas.
+- `/spec-impl` trae `disable-model-invocation: true`: `spec-flow` no puede invocarla; te muestra el comando exacto (`/spec-impl docs/ggin-13/specs/feat/ggin-13/<slug>.md`) para que lo escribas.
+- `/spec-impl` de Klerith/fernando-skills busca solo en `specs/` y crea ramas `spec-NN-slug`: necesita adaptarse a la convención `ggin` para recibir estos specs. Mientras no lo haga, `spec-flow` no le entrega el spec y te lo indica.
 - Documentos o tickets externos (Jira, Confluence) solo se leen si hay una herramienta conectada; si no, lo indica en el resumen.
 - En `claude -p` (modo no interactivo) no puede preguntar ni pausar de forma útil: escribe los specs en `Draft` y se detiene.
 
