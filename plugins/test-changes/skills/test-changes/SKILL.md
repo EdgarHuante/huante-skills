@@ -1,6 +1,6 @@
 ---
 name: test-changes
-description: Create and run the tests for the changes just implemented, following the team's Vitest testing guide for Amplify Gen 2 + React + TypeScript (unit and service tests, no E2E). Runs `pnpm test:cov:changed` (or the project's equivalent) as a diagnostic, scopes the current work with git, reads the changed code, writes the missing `*.unit.test.ts(x)` and, for `allow.*` rules and custom queries/mutations, `*.int.test.ts` next to the code reusing the project's mocks, and loops on `test:cov:changed` until every test passes and Lines ≥ 80%, Functions ≥ 80%, Branches ≥ 75% (or stricter project thresholds); then runs the project's typecheck and ESLint on the files it touched, and reports COMPLETE or INCOMPLETE. Never tests code outside the change set, never writes tests just to execute lines, never changes production code without asking. Use after finishing an implementation, e.g. "/test-changes", "/test-changes --base origin/integration", "/test-changes src/features/query", "write the tests for what I just changed".
+description: Create and run the tests for the changes just implemented, following the team's Vitest testing guide for Amplify Gen 2 + React + TypeScript (unit and service tests, no E2E). Runs `pnpm test:cov:changed` (or the project's equivalent) as a diagnostic, scopes the current work with git, reads the changed code, writes the missing `*.unit.test.ts(x)` and, for `allow.*` rules and custom queries/mutations, `*.int.test.ts` next to the code reusing the project's mocks, and loops on `test:cov:changed` until tests pass, Lines/Functions ≥ 80%, Branches ≥ 75% (or stricter) and every red `Uncovered Line #s` range of the changed files is covered or justified; then runs typecheck and ESLint on touched files and reports COMPLETE or INCOMPLETE. Never tests code outside the change set, never writes tests just to execute lines, never changes production code without asking. Use after finishing an implementation, e.g. "/test-changes", "/test-changes --base origin/integration", "write the tests for what I just changed".
 argument-hint: "[--base <ref>] [paths...]"
 ---
 
@@ -12,11 +12,11 @@ Main loop:
 
 ```text
 test:cov:changed (diagnostic) → git scope → understand the change → existing tests → test matrix
-  → write unit/int tests → run them → coverage loop (test:cov:changed → below threshold? → uncovered lines → more tests → repeat)
+  → write unit/int tests → run them → coverage loop (test:cov:changed → below threshold or red lines left? → uncovered lines → more tests → repeat)
   → lint (touched files) → typecheck → completion criteria → summary
 ```
 
-Coverage plays two roles. As a **diagnostic**, the `Uncovered Line #s` of the report tell you where tests are missing; you decide from the code which behavior those lines implement. As a **completion condition**, the run isn't done while the applicable coverage is below the thresholds (see "Completion criteria"): "tests pass, but coverage is 78%" is not a finished run, it's the next iteration of the loop.
+Coverage plays two roles. As a **diagnostic**, the `Uncovered Line #s` of the report tell you where tests are missing; you decide from the code which behavior those lines implement. As a **completion condition**, the run isn't done while the applicable coverage is below the thresholds or while a change-set file still shows red uncovered lines that nobody explained (see "Completion criteria"): "tests pass, but coverage is 78%" and "coverage is 92%, but lines 40-52 are still red" are not finished runs, they're the next iteration of the loop.
 
 Argument received: `$ARGUMENTS` (optional):
 
@@ -33,11 +33,11 @@ Talk to the user in the language they are writing in (or the one their `CLAUDE.m
 2. **Behavior, not files.** A changed file is not a test target by itself; the behavior it adds or changes is. Every test must trace back to one row of the test matrix (Step 4).
 3. **Ownership doubt stops the run.** If you can't tell with confidence which changes belong to the current work, stop and explain before modifying any file (Step 1.5). Never modify, stash, revert or test uncommitted changes that clearly belong to other work.
 4. **Production code is read-only by default.** Never change production code to make a test pass or to raise coverage. If a test reveals a real bug, show the evidence (input, expected, actual, `path:line`) and ask before fixing it (Step 6).
-5. **Never hide failures.** No `.skip`, `.only`, `.todo`, `it.fails`, commented-out tests, `@ts-ignore`/`@ts-expect-error`, loosened types, lowered thresholds or config changes to make a run green.
+5. **Never hide failures.** No `.skip`, `.only`, `.todo`, `it.fails`, commented-out tests, `@ts-ignore`/`@ts-expect-error`, loosened types, lowered thresholds, coverage-ignore comments (`/* v8 ignore … */`, `/* istanbul ignore … */`, `/* c8 ignore … */`) or config changes to make a run green or a red line disappear.
 6. **Use the project's own commands and infrastructure.** Scripts, configs, mocks and helpers come from the repository. Never invent a runner setup, a new config file, a new dependency or a new shared mock when the project already has one; ask before adding any of them.
 7. **No remote side effects without confirmation.** Service tests hit a real Amplify sandbox. Never deploy (`ampx sandbox`, `ampx pipeline-deploy`), never run against a non-test environment, and ask before running service tests (Step 6.3). Never print secrets from `.env*` or `amplify_outputs.json`.
 8. **No commit, no push, no destructive git.** You leave the tests in the working tree. Never `git stash`, `reset`, `checkout -- <file>`, `restore` or `clean`.
-9. **Coverage is a completion condition, reached only with real tests.** The run isn't finished while the applicable coverage is below the thresholds ("Completion criteria"); keep iterating instead of reporting "tests pass, coverage is below target". But every test must verify a real behavior with Arrange → Act → Assert: never write a test only to execute lines, and never lower thresholds or change coverage globs.
+9. **Coverage is a completion condition, reached only with real tests.** The run isn't finished while the applicable coverage is below the thresholds or a change-set file has red uncovered lines without a test or a justification ("Completion criteria"); keep iterating instead of reporting "tests pass, coverage is below target" or "thresholds pass, some lines are still red". But every test must verify a real behavior with Arrange → Act → Assert: never write a test only to execute lines, and never lower thresholds or change coverage globs.
 10. **Every user decision is an `AskUserQuestion`.** Max 4 options; the recommended option first with ` (Recommended)` in its label. In non-interactive mode (`claude -p`) you can't ask: stop and print what needs deciding.
 
 ---
@@ -87,7 +87,20 @@ The flow is built around the project's changed-files coverage command. Resolve i
 
 **Thresholds.** Per metric, the applicable threshold is the stricter of the project's configuration (`coverage.thresholds` in `vitest.config.*`, or the thresholds the script enforces) and the testing guide's minimums: **Lines 80%, Functions 80%, Branches 75%** (and Statements 80% when the project configures it). Higher targets from the guide or the config (e.g. Lambdas, utilities) apply to those files.
 
-**Reading uncovered lines.** The text table truncates long `Uncovered Line #s` values with `...`. When that happens, read the full list from a machine-readable report the run produced: `coverage/lcov.info` (lines `DA:<line>,0` are uncovered lines; `BRDA:<line>,<block>,<branch>,0` or `-` are untaken branches; anchor the patterns at line start so `BRDA` isn't read as `DA`), or `coverage/coverage-final.json` when present. Never guess the hidden part of a truncated list.
+**Reading uncovered lines (red and yellow).** In the user's terminal, Istanbul's text reporter colors the `Uncovered Line #s` cell by the row's `% Lines`, not by the thresholds:
+
+- **Red** — `% Lines` < 100. The numbers are **lines that never ran**. A file can pass every threshold and still show red lines; those are what the user sees as pending.
+- **Yellow** — `% Lines` = 100. Every line ran; the numbers are lines with a **branch never taken** (the other arm of an `if`, ternary, `??`, `?.`, `||`, `&&`, default parameter).
+- **Empty** — nothing missing.
+
+The output you capture usually has no ANSI colors: derive red/yellow from the row's `% Lines`, never from how the text looks. The table also truncates long values with `...`; when that happens (and whenever you need exact lines), read the full list from a machine-readable report the run produced: `coverage/lcov.info` (lines `DA:<line>,0` are red lines; `BRDA:<line>,<block>,<branch>,0` or `-` are untaken branches, the yellow ones; anchor the patterns at line start so `BRDA` isn't read as `DA`), or `coverage/coverage-final.json` when present. Never guess the hidden part of a truncated list.
+
+**Red lines are work items, not only a percentage.** For every change-set file in scope, keep a **red-line ledger**: one entry per red range (`40-52`), with the behavior that code implements and how it's closed. Each entry must end the run in one of two states:
+
+- `covered` — a real test now runs it (name the test); the range no longer appears in the report.
+- `justified` — no public behavior reaches it (dead code, an impossible defensive branch, a type guard that can't fail, code only exercised against the real backend by a service test). Write the concrete reason; "hard to test" isn't one. Justified entries are shown to the user in Step 7.
+
+Yellow lines inside the diff (branches the change introduced) get the same treatment as red lines. Yellow lines outside the diff are covered when they implement a real behavior and the Branches threshold needs it, and reported otherwise.
 
 Read the script before the first run to learn: its default base (e.g. `origin/integration`) and whether it accepts `--base <ref>`; which files it measures (coverage include/exclude globs); whether it enforces thresholds (a non-zero exit only because coverage is below target is an expected diagnostic result, not a broken run); and where it writes reports (e.g. `coverage/coverage-summary.json` with the `json-summary` reporter). If the user passed `--base`, forward it when the script supports it; if it doesn't, tell the user the script uses its own base.
 
@@ -103,11 +116,11 @@ The command runs unit tests only; service tests (`*.int.test.ts`) never count to
 2. If it fails for a reason other than coverage (tests failing, compile error, missing dependency, bad base ref), record it: failing tests in the change set are part of the work (Step 6); failures elsewhere are reported as pre-existing; a broken environment (dependencies not installed, base ref missing) is explained, and you ask before installing or fetching.
 3. Extract from the output (prefer the JSON summary file when it exists; otherwise the text table `File | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s`):
    - the source files it measured (the changed/affected files),
-   - per file: statements/branches/functions/lines and the uncovered line ranges,
+   - per file: statements/branches/functions/lines and the uncovered line ranges, marked red (never ran) or yellow (branch not taken) as explained in "Reading uncovered lines",
    - files at 0% or with no test at all,
    - the tests it ran and their result,
    - whether each applicable threshold passed (Lines, Functions, Branches, and Statements when configured), in total and per file.
-4. Keep this as the **initial diagnostic**. It feeds Step 1 (scope cross-check) and Step 4 (where tests are missing). Don't write tests yet.
+4. Keep this as the **initial diagnostic**, including the first version of the red-line ledger. It feeds Step 1 (scope cross-check) and Step 4 (where tests are missing). Don't write tests yet.
 
 ---
 
@@ -200,7 +213,7 @@ Build it internally (show it only if the user asks or when a decision needs it).
 
 **Depth**: one test per meaningful case (happy path, each introduced branch, error path, boundary the change actually handles). Don't enumerate inputs that exercise the same branch. Don't test third-party libraries, React itself or Amplify's generated code.
 
-**Using the diagnostic**: map each uncovered range from Step 0 to the behavior it implements, starting with the ranges inside the diff (or code the change made reachable), then the rest of the file. Behavior not yet in the matrix → add a row. Uncovered lines of files outside the change set are never rows. Uncovered lines that are unreachable, purely defensive or trivial (a re-export, a type guard that can't fail) → note them, no row; the thresholds are still reached through real behavior elsewhere in the file.
+**Using the diagnostic**: map each uncovered range from Step 0 to the behavior it implements, starting with the ranges inside the diff (or code the change made reachable), then the rest of the file. Behavior not yet in the matrix → add a row. Uncovered lines of files outside the change set are never rows. Uncovered lines that no public behavior can reach (dead code, a type guard that can't fail, an impossible defensive branch) → `justified` in the red-line ledger with the reason, no row; the thresholds are still reached through real behavior elsewhere in the file. Every other red range of a change-set file maps to a row.
 
 Check the matrix against the inventory: every production file in the change set must have at least one row (even if `none`), so no change is forgotten.
 
@@ -243,21 +256,29 @@ Run the new and updated tests quickly before re-running the diagnostic, so failu
 Passing tests don't end the run. Repeat this loop until the completion criteria are met:
 
 1. Run the changed-coverage command (same command and base as Step 0).
-2. Check that every test passed, then read the totals and each measured file against the applicable thresholds (Lines, Functions, Branches, and Statements when configured). A non-zero exit caused by thresholds means "keep going", not "done" and not "broken".
+2. Check that every test passed, then read the totals and each measured file against the applicable thresholds (Lines, Functions, Branches, and Statements when configured). A non-zero exit caused by thresholds means "keep going", not "done" and not "broken". Then update the red-line ledger from this run's report: ranges that disappeared → `covered`; ranges still listed (or new ones, e.g. after a line shift) → still open. A file that meets every threshold but still has open red ranges is **not** done.
 3. **Classify every shortfall:**
-   - **A — caused by the current work**: files of the change set that the command measures, below threshold. This includes code in those files that existed before the change, because the command measures the whole file. → Close it with tests (points 4-7).
+   - **A — caused by the current work**: files of the change set that the command measures, below threshold or with open red ranges. This includes code in those files that existed before the change, because the command measures the whole file. → Close it with tests (points 4-8).
    - **B — pre-existing and unrelated**: files the command measures that aren't part of the current work (excluded by the ownership check or `paths...`, or pulled in by the script's base or globs). → Don't write or change tests or code for them. Name them with their numbers as the reason the global gate can't pass, and ask the user (header `Coverage`): `Narrow the scope or base so only the current work is measured (Recommended)` / `Also cover these files` / `Stop here`. Until that's resolved the run is **not** successful.
-4. For each A file below threshold, take its uncovered lines, branches and functions (the full list, see "Reading uncovered lines") and read that code: what behavior does each range implement (a branch, a fallback, an error path, an event handler, a render case, a column sort, an empty state)?
+4. For each A file, take its open red ranges first, then its yellow lines and uncovered functions (the full list, see "Reading uncovered lines"), and read that exact code (`Read` the file at those line numbers, with enough context to see the enclosing function and condition): what behavior does each range implement (a branch, a fallback, an error path, an event handler, a render case, a column sort, an empty state)? Write the input or interaction that would reach it.
 5. Read the file's existing tests first: extend them instead of duplicating cases, and reuse their helpers and mocks.
 6. Add the rows to the matrix and write the tests (Step 4 → Step 5): `*.unit.test.ts(x)` for logic, hooks, components, transformations, validations, errors and branches; `*.int.test.ts` only for behavior that needs the Amplify sandbox (`allow.*` authorization, custom queries and mutations), which this report never counts. Every test asserts a real outcome (what the user sees, what is called and with which arguments, what is returned or thrown) with Arrange → Act → Assert, driven through the public surface (props, URL params, user events, function arguments).
-7. Run the new tests (Step 6), fix what fails, and go back to 1.
+7. **When a red range stays red after you tested its behavior**, find out why before writing more tests. Common causes:
+   - the test never reached it: the condition's input wasn't the one you thought (re-read the condition and the data your factory/mock actually produces);
+   - the code runs in a callback the test didn't trigger or await: event handler not fired, `useEffect` cleanup without `unmount()`, promise `.catch`/`finally` or `setTimeout` not awaited (`await user.click`, `findBy*`, `waitFor`, `vi.useFakeTimers` + `advanceTimers` when the project uses them);
+   - a callback was handed to a mock that never calls it (a callback prop, a subscription, a mocked hook): capture it from the mock's call arguments and invoke it, then assert its effect;
+   - the file itself is mocked (`vi.mock('<its path>')`) in the tests that import it, or no test imports it, so `vitest related` never loads the real code: give it its own `*.unit.test.ts(x)` that imports the real module;
+   - the test file doesn't match the `include` of the unit project, so it never ran (check the runner output lists it);
+   - a stale report: the source changed after the run, so line numbers shifted; re-run and re-read the ranges.
+   Fix the cause in the test, never in the production code (hard rule 4).
+8. Run the new tests (Step 6), fix what fails, and go back to 1.
 
 **When the loop can't reach the thresholds honestly**, stop and report the run as **incomplete**, never as done:
-- the remaining uncovered code can't be reached from any public behavior (dead code, impossible branch), so only an artificial test would cover it;
+- the remaining uncovered code can't be reached from any public behavior (dead code, impossible branch), so only an artificial test would cover it (these are the `justified` ledger entries);
 - two consecutive rounds added no coverage although real behaviors were tested;
 - a real bug blocks the tests (Step 6.4).
 
-In those cases show, per file, the numbers, the exact uncovered lines and why they can't be covered with a real test, and ask the user how to proceed (header `Coverage`), e.g. `Remove the dead code (production change)` / `Accept below threshold for now` / `Stop`. Never lower thresholds, edit coverage globs or add assertion-free tests to get out of the loop.
+In those cases show, per file, the numbers, the exact uncovered lines (red and yellow) with the code they contain and why they can't be covered with a real test, and ask the user how to proceed (header `Coverage`), e.g. `Remove the dead code (production change)` / `Accept these lines as justified` / `Accept below threshold for now` / `Stop`. Thresholds met with only `justified` red ranges left still needs this confirmation once; after the user accepts them, those ranges count as resolved. Never lower thresholds, edit coverage globs, add coverage-ignore comments or add assertion-free tests to get out of the loop.
 
 ---
 
@@ -284,13 +305,14 @@ Last checks, after the coverage loop is green. If one of them makes you change a
 
 1. Every test in the changed-coverage run and in the affected feature(s) passes.
 2. The applicable coverage meets every threshold (Lines ≥ 80%, Functions ≥ 80%, Branches ≥ 75%, Statements when configured, or the stricter project values), both in the command's totals and for each measured file of the current work.
-3. The changed-coverage command exits successfully (when it enforces thresholds).
-4. The project's typecheck (or `npx tsc --noEmit` plus every tsconfig that includes tests) reports no errors caused by the current work.
-5. ESLint, with the project's flags, reports no errors or warnings in the files this run touched.
-6. Every change-set file has a matrix row: tested, or `none` with a reason (structural, already covered, service test).
-7. No production code was changed without the user's approval, and no test was skipped, weakened or made assertion-free.
+3. No measured file of the current work has red uncovered lines left except `justified` ranges the user accepted (Step 7), and the yellow lines inside the diff are covered or justified the same way.
+4. The changed-coverage command exits successfully (when it enforces thresholds).
+5. The project's typecheck (or `npx tsc --noEmit` plus every tsconfig that includes tests) reports no errors caused by the current work.
+6. ESLint, with the project's flags, reports no errors or warnings in the files this run touched.
+7. Every change-set file has a matrix row: tested, or `none` with a reason (structural, already covered, service test).
+8. No production code was changed without the user's approval, and no test was skipped, weakened or made assertion-free.
 
-If any criterion fails, the result is **INCOMPLETE**: say which one, why, and what's needed to finish. "Tests pass but coverage is below the thresholds" is never reported as success.
+If any criterion fails, the result is **INCOMPLETE**: say which one, why, and what's needed to finish. "Tests pass but coverage is below the thresholds" and "thresholds pass but red lines are left unexplained" are never reported as success.
 
 ---
 
@@ -302,7 +324,7 @@ Start with the result: **COMPLETE** (all completion criteria met) or **INCOMPLET
 2. **Tests created** (new files) and **tests updated** (existing files), each with the behaviors it covers (`T1 returns the builder name when the id exists — unit`).
 3. **Not tested and why**: structural changes, behaviors already covered (naming the existing test), service tests written but not run, anything not testable here.
 4. **Commands run**, each with ✓ / ✗ / not run and a one-line result (`✓ pnpm test:feature -- query unit — 24 passed`), including the changed-coverage command, the lint command with the files it checked, and the typecheck command (or why one wasn't available).
-5. **Coverage** from the changed-coverage command: totals and each measured file, Lines / Functions / Branches (and Statements) before (Step 0) → after (Step 7) against each threshold with ✓/✗, the number of loop rounds, remaining uncovered lines with their reason, and any B shortfall (pre-existing, unrelated) named separately.
+5. **Coverage** from the changed-coverage command: totals and each measured file, Lines / Functions / Branches (and Statements) before (Step 0) → after (Step 7) against each threshold with ✓/✗, the number of loop rounds, and any B shortfall (pre-existing, unrelated) named separately. Then the **red-line ledger** per file: each red (and in-diff yellow) range from Step 0 with its state — `covered` by `<test name>`, or `justified` with the reason and the user's acceptance — e.g. `ui/Search.tsx 40-52 · empty state when the query returns nothing · covered by Search › shows the empty-state message`. Ranges still open mean INCOMPLETE.
 6. **Problems**: failing tests with their classification (test / environment / pre-existing / implementation bug), lint and TypeScript findings (fixed, pending your decision, or pre-existing), bugs found and whether they were fixed with the user's approval.
 7. **Production code changed**: normally "none"; otherwise each change and the approval behind it.
 8. `git status --short` of the files this run created or modified, kept apart from the user's own changes.

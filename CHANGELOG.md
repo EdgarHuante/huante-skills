@@ -27,6 +27,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Skill **`test-changes` 0.5.0**: resuelve las líneas en rojo de `Uncovered Line #s`.
+  - Explica el color del reporte de texto: rojo (`% Lines` < 100) son líneas que nunca se ejecutaron; amarillo (`% Lines` = 100) son ramas no tomadas. Como la salida capturada no trae colores, el color se deduce de `% Lines`.
+  - Lleva un registro por archivo de cada rango rojo: `cubierto` por una prueba real o `justificado` (inalcanzable desde comportamiento público) con la razón y la aprobación del usuario. Las líneas amarillas dentro del diff reciben el mismo trato.
+  - Cumplir los umbrales ya no basta: un archivo del cambio con líneas rojas sin explicar deja la corrida INCOMPLETE (nuevo criterio de término).
+  - Guía para diagnosticar por qué una línea sigue en rojo (callback no disparado o no esperado, callback entregado a un mock, módulo mockeado con `vi.mock`, prueba fuera del `include`, reporte desactualizado).
+  - Prohíbe comentarios `/* v8 ignore */`, `/* istanbul ignore */` y `/* c8 ignore */` para ocultar líneas.
+  - El resumen incluye el registro de líneas rojas por archivo.
 - Skill **`test-changes` 0.4.0**: el resumen termina con una tabla de todas las pruebas de los archivos del cambio (archivo, nombre completo `describe › it`, tipo, estado nueva/modificada/existente, resultado) y una línea de totales. Nombres y resultados salen de una última corrida con reporter JSON, no de memoria.
 - Skill **`test-changes` 0.3.0**: revisión final de lint y tipos.
   - ESLint con las opciones del script `lint` del proyecto, pero solo sobre los archivos que tocó la corrida y los del cambio; corrige sus pruebas, pregunta antes de tocar producción y reporta lo previo.
