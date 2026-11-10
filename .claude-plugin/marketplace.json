@@ -30,6 +30,12 @@
       "description": "Turn a Jira story into short, phased, project-grounded specs (docs/<KEY>/specs/feat/<KEY>/NN-<slug>.md, one branch per spec) with an architecture, design and gamification review, then stop for approval.",
       "source": "./plugins/pap-spec",
       "category": "development"
+    },
+    {
+      "name": "pap-diagram",
+      "description": "Apply the Diagramas section of a story's approved specs to the team's whiteboard (found by Jira key), after previewing the changes, and annotate the specs as applied.",
+      "source": "./plugins/pap-diagram",
+      "category": "development"
     }
   ]
 }
