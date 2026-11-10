@@ -4,6 +4,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Agregado
+
+- Skill **`pap-spec` 0.1.0**: de una historia de Jira a specs cortos por fases, listos para `/spec-impl`.
+  - Recibe solo la clave (`/pap-spec PAP-38`): lee título, descripción, criterios, subtareas y tarjetas relacionadas con las herramientas de Atlassian; si no están disponibles, pide pegar la tarjeta.
+  - Configuración por proyecto en `.claude/pap-skills.json` (sitio de Jira, carpeta de docs, pizarra del diagrama, ramas protegidas); nada de la empresa queda en la skill.
+  - Investiga el código (subagentes en paralelo cuando el cambio es amplio) y pregunta solo decisiones funcionales que el código no responde.
+  - Divide en fases por cambio funcional, numeradas por orden de implementación: `docs/<CLAVE>/specs/feat/<CLAVE>/NN-<slug>.md`, slug en inglés con guiones, rama `feat/<CLAVE>/NN-<slug>`; una rama por spec, la `01` creada a partir de la rama actual (nunca escribe en ramas protegidas) y cada siguiente a partir de la anterior.
+  - Revisión de Atomic Design, Feature-Based Architecture, KISS, DRY, Escalabilidad y **Gamificación** (eventos del registro de actividad, p. ej. `AppLogs`) que corrige los specs antes de mostrarlos.
+  - Cada criterio de aceptación etiquetado con su subtarea; separa verificaciones automáticas de manuales; sección "Diagramas" con los cambios exactos para la pizarra configurada.
+  - Pausa obligatoria con 5 opciones; tras aprobar marca `Aprobado`, ofrece commit y entrega los comandos `/spec-impl` en orden.
+
 ### Cambiado
 
 - Skill **`spec-flow` 0.2.0**: specs en español con estructura `ggin-N`.

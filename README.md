@@ -12,6 +12,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
 | [`pr-fix`](plugins/pr-fix/README.md) | 0.1.0 | Implementa las correcciones pedidas en el Code Review de un Pull Request de GitHub: entiende el proyecto, relaciona cada comentario con el código, planifica cambios mínimos, pide confirmación cuando hace falta, implementa, valida con los comandos reales del proyecto y reporta el estado de cada comentario. Nunca hace commit, push ni escribe en GitHub sin confirmación explícita. |
 | [`test-changes`](plugins/test-changes/README.md) | 0.5.0 | Crea y ejecuta las pruebas de los cambios recién implementados (Vitest, Amplify Gen 2 + React + TypeScript): detecta el alcance con git, decide unitarias vs de servicio, escribe las pruebas junto al código, ejecuta pruebas, TypeScript y cobertura, y reporta qué se probó y qué quedó sin probar. Solo prueba el cambio actual; no hace commit ni cambia código de producción sin confirmación. |
 | [`spec-flow`](plugins/spec-flow/README.md) | 0.2.0 | Convierte un prompt informal en uno o varios specs pequeños y aterrizados al proyecto: investiga código y docs, mejora requisitos sin inventar, divide por cambio funcional (nunca por archivo), revisa Atomic Design, Feature-Based Architecture, KISS, DRY y escalabilidad corrigiendo los specs, asigna un `ggin-N` incremental por corrida, escribe cada spec en español en `docs/ggin-N/specs/feat/ggin-N/<slug>.md` (rama `feat/ggin-N/<slug>`) y se detiene para tu revisión. Tras tu aprobación entrega cada spec a `/spec-impl`, uno por rama, en orden de dependencias. |
+| [`pap-spec`](plugins/pap-spec/README.md) | 0.1.0 | Convierte una historia de Jira en specs cortos por fases: lee la tarjeta, sus criterios y subtareas, investiga el código, divide en fases numeradas (`01-`, `02-`…), revisa Atomic Design, Feature-Based Architecture, KISS, DRY, escalabilidad y gamificación (eventos del registro de actividad) corrigiendo los specs, escribe cada spec en español en `docs/<CLAVE>/specs/feat/<CLAVE>/NN-<slug>.md` (una rama por spec, creada a partir de la rama actual) con cada criterio etiquetado con su subtarea y una sección "Diagramas", y se detiene para tu aprobación. Se configura con `.claude/pap-skills.json` en el proyecto. |
 
 ## Requisitos
 
@@ -27,6 +28,7 @@ Repositorio personal de skills para [Claude Code](https://claude.com/claude-code
 
 - Para `test-changes`: proyecto con **Vitest** configurado y un script de cobertura de cambios (`test:cov:changed` o equivalente; también usa `test:feature` y `test:changed` si existen). Las pruebas de servicio requieren un sandbox de Amplify de pruebas ya desplegado.
 - Para `spec-flow`: las skills **`/spec`** y **`/spec-impl`** de [Klerith/fernando-skills](https://github.com/Klerith/fernando-skills) instaladas (usa el `template.md` de `/spec` como formato y entrega la implementación a `/spec-impl`).
+- Para `pap-spec`: herramientas de **Atlassian (MCP)** conectadas para leer Jira (si no, te pide pegar la tarjeta), un archivo `.claude/pap-skills.json` en el proyecto (sitio de Jira y pizarra; la skill ofrece crearlo) y la skill **`/spec-impl`** para implementar.
 
 ## Instalación
 

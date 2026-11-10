@@ -1,0 +1,10 @@
+{
+  "name": "pap-spec",
+  "version": "0.1.0",
+  "description": "Turn a Jira story into short, phased, project-grounded specs (docs/<KEY>/specs/feat/<KEY>/NN-<slug>.md, one branch per spec) with an architecture, design and gamification review, then stop for approval.",
+  "author": {
+    "name": "Edgar Huante",
+    "url": "https://github.com/EdgarHuante"
+  },
+  "license": "MIT"
+}
