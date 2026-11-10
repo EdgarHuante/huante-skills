@@ -6,6 +6,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Skill **`pap-diagram` 0.1.0**: aplica en la pizarra del equipo la sección "Diagramas" de los specs de una historia.
+  - Recibe la clave (`/pap-diagram PAP-38`) y la usa solo para encontrar los specs (en el árbol de trabajo o en las ramas `feat/<CLAVE>/*`); si no hay, se detiene y sugiere `/pap-spec`. Nunca diseña cambios desde la tarjeta.
+  - Revisa el estado (`Aprobado`/`Implementado`; avisa con `Borrador`) y la anotación de aplicado para no duplicar cambios.
+  - Une los cambios de todas las fases, te muestra la lista (forma, texto actual y nuevo, estilo, viñetas) y espera confirmación.
+  - Edita con Claude in Chrome con un método verificado: seleccionar + `Enter`, marcador temporal para agregar texto, verificación con zoom tras cada cambio y botón de deshacer de la pizarra ante errores; evita atajos que escriben en la forma y el copiar/pegar.
+  - Reporta lo aplicado, lo corregido y lo pendiente a mano (formas nuevas, conexiones, enlace de Jira) y anota cada spec con `**Diagrama:** aplicado <fecha>`; ofrece commit.
+
 - Skill **`pap-spec` 0.1.0**: de una historia de Jira a specs cortos por fases, listos para `/spec-impl`.
   - Recibe solo la clave (`/pap-spec PAP-38`): lee título, descripción, criterios, subtareas y tarjetas relacionadas con las herramientas de Atlassian; si no están disponibles, pide pegar la tarjeta.
   - Configuración por proyecto en `.claude/pap-skills.json` (sitio de Jira, carpeta de docs, pizarra del diagrama, ramas protegidas); nada de la empresa queda en la skill.
